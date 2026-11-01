@@ -1,5 +1,5 @@
 // Guarda la app en el móvil para que las lecciones funcionen sin internet
-var CACHE = 'sawadee-v1.3';
+var CACHE = 'sawadee-v1.4';
 var FILES = ['./', 'index.html', 'style.css', 'app.js', 'data.js', 'icon.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.webmanifest'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); })); self.skipWaiting(); });
 self.addEventListener('activate', function (e) {

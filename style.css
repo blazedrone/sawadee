@@ -124,3 +124,11 @@ label.set { display: block; margin: 12px 0 4px; font-weight: 700; }
 .modal { position: fixed; inset: 0; background: #0008; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal .box { background: var(--card); color: var(--ink); border-radius: var(--radius); padding: 18px; width: 100%; max-width: 400px; }
 .modal .msg { font-size: 17px; line-height: 1.4; }
+.langbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.langbar .lang { flex: 1; text-align: center; font-weight: 800; font-size: 15px; background: var(--bg); border-radius: 12px; padding: 10px 6px; }
+.langbar .swap { border: 0; background: var(--brand2); color: #fff; width: 44px; height: 44px; border-radius: 50%; font-size: 22px; flex: none; }
+textarea#src { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: 18px; font-family: inherit; background: var(--bg); color: var(--ink); resize: vertical; min-height: 110px; }
+.result .restext { margin: 6px 0; white-space: pre-wrap; word-break: break-word; }
+.result .restext.th { font-size: 28px; } .result .restext.es { font-size: 22px; font-weight: 700; }
+.acts2 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.btn.small.on { background: var(--th-red); color: #fff; border-color: var(--th-red); }

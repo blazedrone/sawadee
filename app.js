@@ -99,6 +99,7 @@
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/\(.*?\)/g, '').replace(/[^a-z0-9ñ ]/g, ' ').replace(/\s+/g, ' ').trim();
   }
+  var TONES = /[\u0E48-\u0E4B]/g;
   function similarity(heardList, it) {
     var r = R(it);
     var targets = [normTh(r.th)].concat(r.alt.map(normTh)).filter(Boolean);
@@ -107,6 +108,10 @@
       var n = normTh(h);
       targets.forEach(function (t) {
         var s = n.indexOf(t) >= 0 ? 1 : 1 - lev(n, t) / Math.max(n.length, t.length, 1);
+        // Un tono mal pronunciado cambia la palabra: sin marcas de tono puntúa algo menos, pero cuenta
+        var n2 = n.replace(TONES, ''), t2 = t.replace(TONES, '');
+        var s2 = 0.9 * (n2.indexOf(t2) >= 0 ? 1 : 1 - lev(n2, t2) / Math.max(n2.length, t2.length, 1));
+        s = Math.max(s, s2);
         if (s > best) { best = s; bestText = h; }
       });
     });
@@ -166,19 +171,49 @@
       stopSpeaking: function () { if (A) A.stopSpeaking(); else if (window.speechSynthesis) speechSynthesis.cancel(); },
       listen: function (lang, h) {
         this.stopSpeaking();
-        if (A) { listener = h; A.listen(lang); return true; }
+        // Si el reconocedor corta sin resultado final pero ya había oído algo, usamos lo oído
+        var last = '';
+        var w = {
+          onPartial: function (t) { last = t; if (h.onPartial) h.onPartial(t); },
+          onBegin: h.onBegin,
+          onResult: function (list) { list = (list || []).filter(Boolean); if (!list.length && last) list = [last]; if (list.length) h.onResult(list); else h.onError('7'); },
+          onError: function (code) {
+            code = String(code);
+            if (last && ['6', '7', 'no-speech', 'aborted'].indexOf(code) >= 0) { h.onResult([last]); return; }
+            if (A && A.listenDialog && !w.retried && ['3', '5', '8', '11', '12', '13', 'unavailable'].indexOf(code) >= 0) {
+              // El reconocedor integrado falla en algunos móviles: pasamos a la ventana de voz de Google
+              w.retried = true; S.micMode = 'dialog'; save();
+              toast('Uso la ventana de voz de Google, que funciona mejor en tu móvil');
+              listener = w; A.listenDialog(lang); return;
+            }
+            h.onError(code);
+          }
+        };
+        if (A) {
+          listener = w;
+          if (S.micMode === 'dialog' && A.listenDialog) A.listenDialog(lang); else A.listen(lang);
+          return true;
+        }
         var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) { h.onError('unavailable'); return false; }
-        rec = new SR(); rec.lang = lang; rec.interimResults = true; rec.maxAlternatives = 5;
+        try { if (rec) rec.abort(); } catch (e) { }
+        rec = new SR(); rec.lang = lang; rec.interimResults = true; rec.maxAlternatives = 5; rec.continuous = false;
         var done = false;
         rec.onresult = function (e) {
-          var r = e.results[e.results.length - 1];
-          if (r.isFinal) { done = true; var list = []; for (var i = 0; i < r.length; i++) list.push(r[i].transcript); h.onResult(list); }
-          else if (h.onPartial) h.onPartial(r[0].transcript);
+          var full = '', allFinal = true;
+          for (var i = 0; i < e.results.length; i++) { full += e.results[i][0].transcript; if (!e.results[i].isFinal) allFinal = false; }
+          if (allFinal) {
+            done = true;
+            var list = [full];
+            var r = e.results[e.results.length - 1];
+            if (e.results.length === 1) for (var j = 1; j < r.length; j++) list.push(r[j].transcript);
+            w.onResult(list);
+          } else w.onPartial(full);
         };
-        rec.onerror = function (e) { done = true; h.onError(e.error); };
-        rec.onend = function () { if (!done) h.onError('7'); };
-        rec.start(); return true;
+        rec.onerror = function (e) { if (done) return; done = true; w.onError(e.error); };
+        rec.onend = function () { if (!done) { done = true; w.onError('7'); } };
+        try { rec.start(); } catch (e) { done = true; w.onError('busy'); }
+        return true;
       },
       stopListening: function () { if (A) A.stopListening(); else if (rec) try { rec.stop(); } catch (e) { } },
       thaiVoiceOk: function () {
@@ -193,16 +228,17 @@
     var m = {
       'permission': 'Necesito permiso de micrófono. Acepta el aviso y vuelve a pulsar.',
       'not-allowed': 'Necesito permiso de micrófono.',
-      'unavailable': 'Este móvil no tiene reconocimiento de voz. Instala o actualiza la app de Google.',
+      'unavailable': Speech.native ? 'Este móvil no tiene reconocimiento de voz. Instala o actualiza la app de Google.' : 'Aquí el micrófono no está disponible. Usa «Escribir» y el micrófono del teclado del móvil.',
+      'cancel': '', 'aborted': '',
       '1': 'Sin conexión: el reconocimiento de voz necesita internet.', '2': 'Sin conexión: el reconocimiento de voz necesita internet.',
       'network': 'Sin conexión: el reconocimiento de voz necesita internet.',
-      'service-not-allowed': 'Activa el dictado: Ajustes del iPhone › General › Teclado › Dictado, y Siri y Dictado en Privacidad.',
+      'service-not-allowed': 'El iPhone no deja usar el micrófono aquí. Activa Dictado (Ajustes › General › Teclado) o usa «Escribir» con el micrófono del teclado.',
       '6': 'No te he oído. Pulsa y habla.', 'no-speech': 'No te he oído. Pulsa y habla.',
       '7': 'No te he entendido, prueba otra vez.', '8': 'El micrófono está ocupado, espera un momento.',
       '9': 'Necesito permiso de micrófono.', '12': 'Falta el idioma tailandés en el reconocimiento de voz de Google.',
       '13': 'Falta el idioma tailandés en el reconocimiento de voz de Google.'
     };
-    return m[code] || ('Error de voz (' + code + '). Prueba otra vez.');
+    return m[code] != null ? m[code] : ('Error de voz (' + code + '). Prueba otra vez.');
   }
 
   // ---------------- Navegación ----------------
@@ -392,7 +428,7 @@
         micEl.classList.remove('on');
         var s = similarity(list, it), pct = Math.round(s.score * 100);
         heardEl.textContent = '«' + (s.text || '…') + '»';
-        var ok = s.score >= 0.6;
+        var ok = s.score >= 0.55;
         scoreEl.textContent = s.score >= 0.85 ? '¡Perfecto! ' + pct + '% 🎯' : ok ? '¡Bien! ' + pct + '% 👍' : 'Casi… ' + pct + '%. Escucha y repite.';
         scoreEl.className = 'score ' + (s.score >= 0.85 ? 'ok' : ok ? 'mid' : 'bad');
         cb(ok, s);
@@ -607,11 +643,13 @@
 
   // ---------------- Traductor ----------------
   function translate(text, from, to) {
-    var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + from + '&tl=' + to + '&dt=t&q=' + encodeURIComponent(text);
+    var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + from + '&tl=' + to + '&dt=t';
     var ctrl = window.AbortController ? new AbortController() : null;
-    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 9000);
-    return fetch(url, ctrl ? { signal: ctrl.signal } : {}).then(function (r) { clearTimeout(timer); if (!r.ok) throw new Error('http'); return r.json(); })
-      .then(function (d) { return { text: d[0].map(function (x) { return x[0]; }).join(''), online: true }; })
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 12000);
+    var opts = { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: 'q=' + encodeURIComponent(text) };
+    if (ctrl) opts.signal = ctrl.signal;
+    return fetch(url, opts).then(function (r) { clearTimeout(timer); if (!r.ok) throw new Error('http'); return r.json(); })
+      .then(function (d) { return { text: (d[0] || []).map(function (x) { return x[0] || ''; }).join(''), online: true }; })
       .catch(function () {
         clearTimeout(timer);
         var off = offlineLookup(text, from);
@@ -633,15 +671,48 @@
     return bestS >= 0.75 ? best : null;
   }
 
+  function copyText(t) {
+    if (window.Android && Android.copy && Android.copy(t)) { toast('Copiado 📋'); return; }
+    var done = function () { toast('Copiado 📋'); };
+    if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(t).then(done, fallback); return; }
+    fallback();
+    function fallback() {
+      var ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { toast('No se pudo copiar'); } ta.remove();
+    }
+  }
+  function saveTr(m) {
+    var th = m.from === 'es' ? m.out : m.src, es_ = m.from === 'es' ? m.src : m.out;
+    if (!S.saved.some(function (x) { return x.th === th; })) { S.saved.push({ th: th, es: es_, ro: m.ro || '' }); save(); }
+    toast('Guardada en Frases ⭐');
+  }
+  function bigTr(m) { m.from === 'es' ? showCard(m.out, m.src, m.ro) : showCard(m.src, m.out); }
+  function sayTr(m) { if (m.from === 'es') sayTh(m.out, 0.9); else sayEs(m.out); }
+  // Traduce, guarda en el historial y devuelve el mensaje
+  function runTranslation(text, from) {
+    var to = from === 'es' ? 'th' : 'es';
+    return translate(text, from, to).then(function (res) {
+      var m = { from: from, src: text, out: res.text, ro: res.ro || null, offline: !res.online, t: Date.now() };
+      S.history.push(m); if (S.history.length > 100) S.history = S.history.slice(-100); save();
+      return m;
+    });
+  }
+  var NO_NET = 'Sin internet solo puedo traducir frases del curso. Mira «Frases», que funciona sin conexión.';
+
   SCREENS.translator = function () {
-    setTitle('Traductor por voz');
-    html('<div class="tip" id="ttip">🇪🇸 Pulsa el botón azul y habla en español: lo traduzco y lo digo en tailandés.<br>🇹🇭 La persona tailandesa pulsa el rojo y habla: verás y oirás el español.</div><div class="chat" id="chat"></div>');
+    var mode = S.trMode || 'talk';
+    setTitle('Traductor');
+    html('<div class="seg" id="trmode" style="margin-bottom:12px"><button data-m="talk">🗣️ Conversación</button><button data-m="write">⌨️ Escribir</button></div>');
+    $$('#trmode button', view).forEach(function (b) { b.classList.toggle('on', b.dataset.m === mode); });
+    on('#trmode button', 'click', function (e, b) { if (b.dataset.m !== mode) { S.trMode = b.dataset.m; save(); render(); } });
+    if (mode === 'write') return writeTranslator();
+
+    html('<div class="tip" id="ttip">🇪🇸 Pulsa el botón azul y habla en español: lo traduzco y lo digo en tailandés.<br>🇹🇭 La persona tailandesa pulsa el rojo y habla: verás y oirás el español.<br>⌨️ Para escribir, usa la pestaña «Escribir».</div><div class="chat" id="chat"></div>');
     if (S.history.length) $('#ttip').style.display = 'none';
     var bar = document.createElement('div'); bar.className = 'talkbar';
     bar.innerHTML = '<div class="live" id="live">&nbsp;</div><div class="talkbtns">' +
       '<button class="talk es" id="tes">🎤 Español<small>Yo hablo</small></button>' +
-      '<button class="talk th" id="tth">🎤 ภาษาไทย<small>กดแล้วพูดภาษาไทย</small></button></div>' +
-      '<div class="typebox"><input id="typed" placeholder="O escribe aquí (español o ไทย)…" enterkeyhint="send"><button id="send">Traducir</button></div>';
+      '<button class="talk th" id="tth">🎤 ภาษาไทย<small>กดแล้วพูดภาษาไทย</small></button></div>';
     view.appendChild(bar);
     var chat = $('#chat');
     S.history.slice(-40).forEach(function (m) { addBubble(m, false); });
@@ -652,53 +723,111 @@
       var div = document.createElement('div'); div.className = 'bubble ' + (isMe ? 'me' : 'them');
       div.innerHTML = '<div class="orig">' + (isMe ? '🇪🇸 ' : '🇹🇭 ') + esc(m.src) + '</div><div class="trans">' + (isMe ? '🇹🇭 ' : '🇪🇸 ') + esc(m.out) + '</div>' +
         (m.ro ? '<div class="ro" style="font-size:15px">' + esc(m.ro) + '</div>' : '') + (m.offline ? '<div class="muted" style="font-size:12px">sin conexión · frase del curso</div>' : '') +
-        '<div class="acts"><button data-a="say">🔊 Repetir</button><button data-a="big">🔍 Grande</button><button data-a="save">⭐ Guardar</button></div>';
-      div.querySelector('[data-a=say]').onclick = function () { if (isMe) sayTh(m.out, 0.9); else sayEs(m.out); };
-      div.querySelector('[data-a=big]').onclick = function () { isMe ? showCard(m.out, m.src, m.ro) : showCard(m.src, m.out); };
-      div.querySelector('[data-a=save]').onclick = function () {
-        var th = isMe ? m.out : m.src, es_ = isMe ? m.src : m.out;
-        if (!S.saved.some(function (x) { return x.th === th; })) { S.saved.push({ th: th, es: es_, ro: m.ro || '' }); save(); }
-        toast('Guardada en Frases ⭐');
-      };
+        '<div class="acts"><button data-a="say">🔊</button><button data-a="big">🔍 Grande</button><button data-a="copy">📋</button><button data-a="save">⭐</button></div>';
+      div.querySelector('[data-a=say]').onclick = function () { sayTr(m); };
+      div.querySelector('[data-a=big]').onclick = function () { bigTr(m); };
+      div.querySelector('[data-a=copy]').onclick = function () { copyText(m.out); };
+      div.querySelector('[data-a=save]').onclick = function () { saveTr(m); };
       chat.appendChild(div);
       if (animate) scrollEnd();
     }
     function doTranslate(text, from) {
       text = (text || '').trim(); if (!text) return;
-      var to = from === 'es' ? 'th' : 'es';
       $('#live').textContent = 'Traduciendo…';
-      translate(text, from, to).then(function (res) {
-        var m = { from: from, src: text, out: res.text, ro: res.ro || null, offline: !res.online, t: Date.now() };
-        S.history.push(m); if (S.history.length > 100) S.history = S.history.slice(-100); save();
+      runTranslation(text, from).then(function (m) {
         $('#ttip').style.display = 'none';
         addBubble(m, true); $('#live').innerHTML = '&nbsp;';
-        if (to === 'th') sayTh(m.out, 0.9); else if (S.speakOut) sayEs(m.out);
-      }).catch(function () {
-        $('#live').textContent = 'Sin internet no puedo traducir frases nuevas. Mira «Frases», que funciona sin conexión.';
-      });
+        if (m.from === 'es' || S.speakOut) sayTr(m);
+      }).catch(function () { $('#live').textContent = NO_NET; });
     }
     function talk(btn, lang, from) {
       if (btn.classList.contains('on')) { Speech.stopListening(); return; }
       $$('.talk').forEach(function (b) { b.classList.remove('on'); });
       btn.classList.add('on');
-      $('#live').textContent = from === 'es' ? 'Escuchando en español…' : 'กำลังฟัง… (escuchando tailandés)';
+      $('#live').textContent = from === 'es' ? 'Escuchando en español… habla con calma' : 'กำลังฟัง… (escuchando tailandés)';
       Speech.listen(lang, {
         onPartial: function (t) { $('#live').textContent = t; },
-        onResult: function (list) { btn.classList.remove('on'); if (list[0]) doTranslate(list[0], from); else $('#live').innerHTML = '&nbsp;'; },
-        onError: function (code) { btn.classList.remove('on'); $('#live').textContent = (code === '7' || code === '6') && from === 'th' ? 'ไม่ได้ยิน ลองอีกครั้งนะคะ · No se oyó, prueba otra vez' : speechErr(code); }
+        onResult: function (list) { btn.classList.remove('on'); doTranslate(list[0], from); },
+        onError: function (code) {
+          btn.classList.remove('on');
+          $('#live').textContent = (code === '7' || code === '6') && from === 'th' ? 'ไม่ได้ยิน ลองอีกครั้งนะคะ · No se oyó, prueba otra vez' : (speechErr(code) || ' ');
+        }
       });
     }
     $('#tes').onclick = function () { talk(this, 'es-ES', 'es'); };
     $('#tth').onclick = function () { talk(this, 'th-TH', 'th'); };
-    function sendTyped() { var v = $('#typed').value; $('#typed').value = ''; doTranslate(v, hasThai(v) ? 'th' : 'es'); }
-    $('#send').onclick = sendTyped;
-    $('#typed').addEventListener('keydown', function (e) { if (e.key === 'Enter') sendTyped(); });
     if (S.history.length) {
       html('<button class="btn small alt" id="clear" style="margin:0 auto 10px;display:block">Borrar conversación</button>');
       chat.parentNode.insertBefore($('#clear'), chat);
       $('#clear').onclick = function () { ask('¿Borrar toda la conversación del traductor?', 'Borrar', function () { S.history = []; save(); render(); toast('Conversación borrada'); }); };
     }
   };
+
+  function writeTranslator() {
+    var from = S.trFrom || 'es';
+    var L = { es: { flag: '🇪🇸', name: 'Español', ph: 'Escribe en español lo que quieras decir…', lang: 'es-ES' },
+              th: { flag: '🇹🇭', name: 'ไทย (tailandés)', ph: 'พิมพ์ภาษาไทยที่นี่… (escribe en tailandés)', lang: 'th-TH' } };
+    html('<div class="card"><div class="langbar"><span class="lang" id="lsrc"></span><button class="swap" id="swap" aria-label="Cambiar idioma">⇄</button><span class="lang" id="ldst"></span></div>' +
+      '<textarea id="src" rows="4" autocapitalize="sentences"></textarea>' +
+      '<div class="row" style="gap:8px;margin-top:8px"><button class="btn small alt" id="dict">🎤 Dictar</button><button class="btn small alt" id="clr">✕</button><span class="grow"></span><button class="btn small" id="go">Traducir</button></div>' +
+      '<div class="muted" id="wlive" style="font-size:14px;margin-top:6px;min-height:18px"></div></div>' +
+      '<div id="out"></div>' +
+      '<div class="muted" style="font-size:13px;margin-top:6px">💡 Para escribir en tailandés, añade el teclado tailandés en tu móvil (Ajustes › Teclado › Idiomas). El idioma se detecta solo al traducir.</div>');
+    var src = $('#src');
+    try { src.value = sessionStorage.getItem('sawadee.draft') || ''; } catch (e) { }
+    function paintLang() {
+      var to = from === 'es' ? 'th' : 'es';
+      $('#lsrc').textContent = L[from].flag + ' ' + L[from].name;
+      $('#ldst').textContent = L[to].flag + ' ' + L[to].name;
+      src.placeholder = L[from].ph;
+      src.lang = from;
+    }
+    function setFrom(f) { from = f; S.trFrom = f; save(); paintLang(); }
+    paintLang();
+    src.addEventListener('input', function () { try { sessionStorage.setItem('sawadee.draft', src.value); } catch (e) { } });
+    $('#swap').onclick = function () {
+      var last = S.history[S.history.length - 1];
+      setFrom(from === 'es' ? 'th' : 'es');
+      // al girar, el último resultado pasa a ser el texto de partida
+      if (last && $('#out').innerHTML && last.from !== from) src.value = last.out;
+      $('#out').innerHTML = '';
+    };
+    $('#clr').onclick = function () { src.value = ''; $('#out').innerHTML = ''; try { sessionStorage.removeItem('sawadee.draft'); } catch (e) { } src.focus(); };
+    function go() {
+      var text = src.value.trim(); if (!text) { src.focus(); return; }
+      var th = hasThai(text), latin = /[a-zA-ZáéíóúñÁÉÍÓÚÑ]/.test(text);
+      if (th && from === 'es') { setFrom('th'); toast('He detectado tailandés 🇹🇭'); }
+      else if (!th && latin && from === 'th') { setFrom('es'); toast('He detectado español 🇪🇸'); }
+      src.blur();
+      $('#wlive').textContent = 'Traduciendo…';
+      runTranslation(text, from).then(function (m) {
+        $('#wlive').textContent = '';
+        var isTh = m.from === 'es';
+        $('#out').innerHTML = '<div class="card result ' + (isTh ? 'to-th' : 'to-es') + '"><div class="muted" style="font-size:13px">' + (isTh ? '🇹🇭 En tailandés' : '🇪🇸 En español') + (m.offline ? ' · sin conexión, frase del curso' : '') + '</div>' +
+          '<div class="' + (isTh ? 'th' : 'es') + ' restext">' + esc(m.out) + '</div>' + (m.ro ? '<div class="ro">' + esc(m.ro) + '</div>' : '') +
+          '<div class="acts2"><button class="btn small" data-a="say">🔊 Escuchar</button><button class="btn small alt" data-a="big">🔍 Enseñar</button><button class="btn small alt" data-a="copy">📋 Copiar</button><button class="btn small alt" data-a="save">⭐ Guardar</button></div></div>';
+        $('#out [data-a=say]').onclick = function () { sayTr(m); };
+        $('#out [data-a=big]').onclick = function () { bigTr(m); };
+        $('#out [data-a=copy]').onclick = function () { copyText(m.out); };
+        $('#out [data-a=save]').onclick = function () { saveTr(m); };
+        if (isTh) sayTr(m);
+        $('#out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }).catch(function () { $('#wlive').textContent = NO_NET; });
+    }
+    $('#go').onclick = go;
+    $('#dict').onclick = function () {
+      var b = this;
+      if (b.classList.contains('on')) { Speech.stopListening(); return; }
+      b.classList.add('on'); b.textContent = '⏹ Parar';
+      var base = src.value ? src.value.replace(/\s*$/, ' ') : '';
+      $('#wlive').textContent = from === 'es' ? 'Escuchando en español…' : 'กำลังฟัง… (escuchando tailandés)';
+      Speech.listen(L[from].lang, {
+        onPartial: function (t) { src.value = base + t; },
+        onResult: function (list) { b.classList.remove('on'); b.textContent = '🎤 Dictar'; src.value = base + list[0]; $('#wlive').textContent = ''; go(); },
+        onError: function (code) { b.classList.remove('on'); b.textContent = '🎤 Dictar'; $('#wlive').textContent = speechErr(code); }
+      });
+    };
+  }
 
   function showCard(th, es, ro) {
     var d = document.createElement('div'); d.className = 'showcard';
@@ -759,12 +888,13 @@
       '<div class="card"><h3>🔈 Voz y micrófono</h3><div class="muted">Voz tailandesa: ' + (voiceOk ? '✅ instalada' : '⚠️ no encontrada') + '</div>' +
       '<button class="btn small" id="test" style="margin-top:8px">Probar voz</button> ' +
       (Speech.native ? '<button class="btn small alt" id="inst" style="margin-top:8px">Instalar voz tailandesa</button> <button class="btn small alt" id="ttsset" style="margin-top:8px">Ajustes de voz</button>' : '') +
+      (Speech.native ? '<label class="set">Micrófono</label><div class="seg" id="mm"><button data-m="inline">Integrado</button><button data-m="dialog">Ventana de Google</button></div><div class="muted" style="font-size:13px;margin-top:4px">Si no te entiende bien, prueba «Ventana de Google».</div>' : '') +
       '<div class="muted" style="margin-top:12px">Prueba del micrófono (di algo en tailandés):</div><button class="mic" id="mic" style="width:80px;height:80px;font-size:32px">🎤</button><div class="heard" id="heard"></div></div>' +
       '<div class="card"><h3>💾 Copia de seguridad</h3><div class="muted">Guarda tu progreso en un archivo para no perderlo si cambias de móvil o reinstalas la app.</div>' +
       '<div class="grid2"><button class="btn" id="exp">⬆️ Exportar</button><button class="btn alt" id="imp">⬇️ Importar</button></div>' +
       '<input type="file" id="impfile" accept="application/json,.json,text/plain" style="display:none"></div>' +
       '<div class="card"><button class="btn alt" id="replace" style="margin-top:0">Repetir test de nivel</button><button class="btn bad" id="reset">Borrar todo el progreso</button></div>' +
-      '<div class="muted center" style="font-size:12px">Sawadee v1.3 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
+      '<div class="muted center" style="font-size:12px">Sawadee v1.4 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
     function paint() { $$('#g button', view).forEach(function (b) { b.classList.toggle('on', b.dataset.g === S.gender); }); }
     paint();
     on('#g button', 'click', function (e, b) { S.gender = b.dataset.g; save(); paint(); });
@@ -785,6 +915,9 @@
         onError: function (c) { m.classList.remove('on'); $('#heard').textContent = speechErr(c); }
       });
     });
+    function paintMm() { $$('#mm button', view).forEach(function (b) { b.classList.toggle('on', b.dataset.m === (S.micMode === 'dialog' ? 'dialog' : 'inline')); }); }
+    paintMm();
+    on('#mm button', 'click', function (e, b) { S.micMode = b.dataset.m; save(); paintMm(); });
     on('#exp', 'click', exportProgress);
     on('#imp', 'click', function () { if (window.Android && Android.importProgress) Android.importProgress(); else $('#impfile').click(); });
     on('#impfile', 'change', function (e, el) {
