@@ -668,20 +668,76 @@
   };
 
   // ---------------- Traductor ----------------
-  function translate(text, from, to) {
-    var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + from + '&tl=' + to + '&dt=t';
+  // ---------------- Traducción ----------------
+  // Google (gratuito, sin clave) bloquea con error 429 si se usa mucho; entonces pasamos a MyMemory.
+  var httpCbs = {}, httpN = 0;
+  window.onHttp = function (id, code, body) { var cb = httpCbs[id]; if (cb) { delete httpCbs[id]; cb(code, body); } };
+  function getJson(url) {
+    if (window.Android && Android.httpGet) {
+      return new Promise(function (resolve, reject) {
+        var id = 'h' + (++httpN);
+        var timer = setTimeout(function () { delete httpCbs[id]; reject(new Error('timeout')); }, 15000);
+        httpCbs[id] = function (code, body) {
+          clearTimeout(timer);
+          if (code < 200 || code >= 300) return reject(new Error('http ' + code));
+          try { resolve(JSON.parse(body)); } catch (e) { reject(e); }
+        };
+        Android.httpGet(url, id);
+      });
+    }
     var ctrl = window.AbortController ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 12000);
-    var opts = { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: 'q=' + encodeURIComponent(text) };
-    if (ctrl) opts.signal = ctrl.signal;
-    return fetch(url, opts).then(function (r) { clearTimeout(timer); if (!r.ok) throw new Error('http'); return r.json(); })
-      .then(function (d) { return { text: (d[0] || []).map(function (x) { return x[0] || ''; }).join(''), online: true }; })
-      .catch(function () {
-        clearTimeout(timer);
-        var off = offlineLookup(text, from);
-        if (off) return { text: to === 'th' ? off.th : off.es, ro: to === 'th' ? off.ro : null, online: false };
-        throw new Error('offline');
+    return fetch(url, ctrl ? { signal: ctrl.signal } : {}).then(function (r) {
+      clearTimeout(timer); if (!r.ok) throw new Error('http ' + r.status); return r.json();
+    }, function (e) { clearTimeout(timer); throw e; });
+  }
+  function decodeEntities(t) { var ta = document.createElement('textarea'); ta.innerHTML = t; return ta.value; }
+  var googleDownUntil = 0;
+  function viaGoogle(text, from, to) {
+    if (Date.now() < googleDownUntil) return Promise.reject(new Error('google-down'));
+    return getJson('https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + from + '&tl=' + to + '&dt=t&q=' + encodeURIComponent(text))
+      .then(function (d) {
+        var out = (d && d[0] || []).map(function (x) { return x[0] || ''; }).join('');
+        if (!out) throw new Error('empty');
+        return out;
+      }, function (e) { googleDownUntil = Date.now() + 10 * 60000; throw e; });
+  }
+  function viaMyMemory(text, from, to) {
+    return getJson('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + from + '|' + to)
+      .then(function (d) {
+        var out = d && d.responseData && d.responseData.translatedText;
+        if (!out || (d.responseStatus && +d.responseStatus !== 200) || d.quotaFinished) throw new Error('mymemory');
+        return decodeEntities(out);
       });
+  }
+  // Trozos de hasta ~450 caracteres, cortando por frases (MyMemory admite 500 por petición)
+  function chunksOf(text) {
+    var parts = text.match(/[^.!?。\n]+[.!?。]*\n*|\n+/g) || [text], out = [], cur = '';
+    parts.forEach(function (p) {
+      if ((cur + p).length > 450 && cur) { out.push(cur); cur = ''; }
+      while (p.length > 450) { out.push(p.slice(0, 450)); p = p.slice(450); }
+      cur += p;
+    });
+    if (cur) out.push(cur);
+    return out;
+  }
+  function translateChunk(c, from, to) {
+    if (!c.trim()) return Promise.resolve(c);
+    var lead = c.match(/^\s*/)[0], tail = c.match(/\s*$/)[0];
+    return viaGoogle(c.trim(), from, to).catch(function () { return viaMyMemory(c.trim(), from, to); })
+      .then(function (t) { return lead + t + tail; });
+  }
+  function translate(text, from, to) {
+    var chunks = chunksOf(text), out = [];
+    return chunks.reduce(function (p, c) {
+      return p.then(function () { return translateChunk(c, from, to).then(function (t) { out.push(t); }); });
+    }, Promise.resolve()).then(function () {
+      return { text: out.join('').trim(), online: true };
+    }).catch(function () {
+      var off = offlineLookup(text, from);
+      if (off) return { text: to === 'th' ? off.th : off.es, ro: to === 'th' ? off.ro : null, online: false };
+      throw new Error(navigator.onLine === false ? 'offline' : 'busy');
+    });
   }
   function offlineLookup(text, from) {
     var best = null, bestS = 0;
@@ -724,6 +780,8 @@
     });
   }
   var NO_NET = 'Sin internet solo puedo traducir frases del curso. Mira «Frases», que funciona sin conexión.';
+  var BUSY = 'Los servicios de traducción no responden ahora mismo. Espera un minuto y vuelve a intentarlo.';
+  function trError(e) { return e && e.message === 'busy' ? BUSY : NO_NET; }
 
   SCREENS.translator = function () {
     var mode = S.trMode || 'talk';
@@ -764,7 +822,7 @@
         $('#ttip').style.display = 'none';
         addBubble(m, true); $('#live').innerHTML = '&nbsp;';
         if (m.from === 'es' || S.speakOut) sayTr(m);
-      }).catch(function () { $('#live').textContent = NO_NET; });
+      }).catch(function (e) { $('#live').textContent = trError(e); });
     }
     function talk(btn, lang, from) {
       if (btn.classList.contains('on')) { Speech.stopListening(); return; }
@@ -838,7 +896,7 @@
         $('#out [data-a=save]').onclick = function () { saveTr(m); };
         if (isTh) sayTr(m);
         $('#out').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }).catch(function () { $('#wlive').textContent = NO_NET; });
+      }).catch(function (e) { $('#wlive').textContent = trError(e); });
     }
     $('#go').onclick = go;
     $('#dict').onclick = function () {
@@ -920,7 +978,7 @@
       '<div class="grid2"><button class="btn" id="exp">⬆️ Exportar</button><button class="btn alt" id="imp">⬇️ Importar</button></div>' +
       '<input type="file" id="impfile" accept="application/json,.json,text/plain" style="display:none"></div>' +
       '<div class="card"><button class="btn alt" id="replace" style="margin-top:0">Repetir test de nivel</button><button class="btn bad" id="reset">Borrar todo el progreso</button></div>' +
-      '<div class="muted center" style="font-size:12px">Sawadee v1.5 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
+      '<div class="muted center" style="font-size:12px">Sawadee v1.6 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
     function paint() { $$('#g button', view).forEach(function (b) { b.classList.toggle('on', b.dataset.g === S.gender); }); }
     paint();
     on('#g button', 'click', function (e, b) { S.gender = b.dataset.g; save(); paint(); });
