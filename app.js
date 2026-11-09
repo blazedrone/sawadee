@@ -37,7 +37,12 @@
 
   // ---------------- Contenido ----------------
   var ALL = [];
-  LEVELS.forEach(function (L) {
+  var TOPICS = window.TOPICS || [];
+  var NL = LEVELS.length; // niveles con progresión; los temas (TOPICS) van aparte y siempre abiertos
+  function isTopic(id) { return id > NL; }
+  function lvlObj(id) { return isTopic(id) ? TOPICS.filter(function (T) { return T.id === id; })[0] : LEVELS[id - 1]; }
+  function corePassed() { return Object.keys(S.passed).filter(function (k) { return +k <= NL; }).length; }
+  LEVELS.concat(TOPICS).forEach(function (L) {
     L.items.forEach(function (raw, i) { ALL.push({ id: L.id + '-' + i, lvl: L.id, raw: raw }); });
   });
   function levelItems(lvl) { return ALL.filter(function (x) { return x.lvl === lvl; }); }
@@ -282,13 +287,13 @@
     var dailyDone = rec && rec.daily != null;
     var cur = Math.min(S.unlocked, LEVELS.length);
     var L = LEVELS[cur - 1];
-    var allPassed = Object.keys(S.passed).length >= LEVELS.length;
+    var allPassed = corePassed() >= LEVELS.length;
     var heroTxt = d > 0 ? '<div class="big">' + d + '</div><small>días para Tailandia 🇹🇭 (16 nov)</small>'
       : '<div class="big">🇹🇭</div><small>¡Ya estás en Tailandia! Usa el traductor y las frases rápidas.</small>';
     var dots = ''; for (var i = 6; i >= 0; i--) { var k = addDays(-i); dots += '<i class="' + (S.days[k] && S.days[k].daily != null ? 'on' : '') + '"></i>'; }
     var pace = '';
     if (d > 0 && !allPassed) {
-      var left = LEVELS.length - Object.keys(S.passed).length;
+      var left = LEVELS.length - corePassed();
       pace = '<div class="muted" style="margin-top:8px;font-size:14px">Te quedan ' + left + ' niveles: ' +
         (d >= left ? 'aprueba uno cada ' + Math.max(1, Math.floor(d / left)) + ' días y llegas sobrado.' : 'ritmo intensivo, más de un nivel al día.') + '</div>';
     }
@@ -317,6 +322,14 @@
       on('#exam', 'click', function () { startExam(L.id); });
     } else {
       html('<div class="card center"><div class="result-emoji">🏆</div><h3>¡Has aprobado los 10 niveles!</h3><div class="muted">Sigue con la prueba diaria para no olvidar nada.</div></div>');
+    }
+    if (TOPICS.length) {
+      html('<div class="card"><div class="row"><div class="grow"><h3>🆕 Temas libres</h3><div class="muted">' + TOPICS.length + ' temas siempre abiertos: ' +
+        TOPICS.map(function (T) { return T.icon; }).join(' ') + '</div></div></div><button class="btn alt" id="topics">Ver temas</button></div>');
+      on('#topics', 'click', function () {
+        go('levels', null, { root: true });
+        setTimeout(function () { var h = document.getElementById('topicsH'); if (h) h.scrollIntoView({ behavior: 'smooth' }); }, 50);
+      });
     }
     html('<div class="grid2">' +
       '<button class="tile" id="tTrans"><span>🗣️</span>Traductor por voz<small>Español ⇄ Tailandés</small></button>' +
@@ -352,18 +365,28 @@
         '<div class="row"><h3 class="grow">' + L.id + '. ' + L.title + '</h3>' + badge + '</div>' +
         '<div class="bar"><i style="width:' + levelMastery(L.id) + '%"></i></div></div></div>');
     });
+    if (TOPICS.length) {
+      html('<h2 id="topicsH" style="margin-top:18px">Temas libres</h2><div class="muted" style="margin-bottom:10px">Siempre abiertos: estudia el que quieras, cuando quieras.</div>');
+      TOPICS.forEach(function (T) {
+        var badge = S.passed[T.id] ? '<span class="badge ok">Aprobado</span>' : '<span class="badge cur">Nuevo</span>';
+        if (!S.passed[T.id] && levelSeen(T.id)) badge = '<span class="badge cur">' + levelSeen(T.id) + '/' + T.items.length + '</span>';
+        html('<div class="card level" data-l="' + T.id + '"><div class="ico">' + T.icon + '</div><div class="grow">' +
+          '<div class="row"><h3 class="grow">' + T.title + '</h3>' + badge + '</div>' +
+          '<div class="bar"><i style="width:' + levelMastery(T.id) + '%"></i></div></div></div>');
+      });
+    }
     html('<button class="btn alt" id="replace">Repetir test de nivel</button>');
     on('.level', 'click', function (e, el) {
       var id = +el.dataset.l;
-      if (id > S.unlocked) return toast('Aprueba el examen del nivel ' + (id - 1) + ' para desbloquearlo');
+      if (!isTopic(id) && id > S.unlocked) return toast('Aprueba el examen del nivel ' + (id - 1) + ' para desbloquearlo');
       go('level', id);
     });
     on('#replace', 'click', startPlacement);
   };
 
   SCREENS.level = function (id) {
-    var L = LEVELS[id - 1];
-    setTitle('Nivel ' + id);
+    var L = lvlObj(id);
+    setTitle(isTopic(id) ? 'Tema' : 'Nivel ' + id);
     html('<div class="card"><div class="level"><div class="ico">' + L.icon + '</div><div class="grow"><h2 style="margin:0">' + L.title + '</h2>' +
       '<div class="muted">' + L.items.length + ' frases · dominio ' + levelMastery(id) + '%' + (S.passed[id] ? ' · ✅ aprobado' : '') + '</div></div></div></div>' +
       '<div class="tip">💡 ' + esc(L.tip) + '</div>' +
@@ -379,7 +402,7 @@
     on('#study', 'click', function () { go('study', { lvl: id }); });
     on('#exam', 'click', function () { startExam(id); });
     on('#practice', 'click', function () {
-      runQuiz({ title: 'Práctica · Nivel ' + id, questions: buildQuestions(sample(levelItems(id), 8), ['listen', 'speak', 'meaning', 'repeat']), kind: 'practice' });
+      runQuiz({ title: 'Práctica · ' + (isTopic(id) ? L.title : 'Nivel ' + id), questions: buildQuestions(sample(levelItems(id), 8), ['listen', 'speak', 'meaning', 'repeat']), kind: 'practice' });
     });
   };
   function byId(id) { for (var i = 0; i < ALL.length; i++) if (ALL[i].id === id) return ALL[i]; }
@@ -392,8 +415,8 @@
       a.i = 0; for (var k = 0; k < its.length; k++) { if (!prog(its[k])) { a.i = k; break; } }
     }
     var it = its[a.i], r = R(it);
-    setTitle('Estudiar · Nivel ' + a.lvl);
-    html('<div class="progress-q"><span>Frase ' + (a.i + 1) + ' de ' + its.length + '</span><span>' + LEVELS[a.lvl - 1].title + '</span></div>' +
+    setTitle(isTopic(a.lvl) ? 'Estudiar · Tema' : 'Estudiar · Nivel ' + a.lvl);
+    html('<div class="progress-q"><span>Frase ' + (a.i + 1) + ' de ' + its.length + '</span><span>' + lvlObj(a.lvl).title + '</span></div>' +
       '<div class="bar" style="margin-bottom:12px"><i style="width:' + Math.round(100 * (a.i + 1) / its.length) + '%"></i></div>' +
       '<div class="card center"><div class="th">' + esc(r.th) + '</div><div class="ro">' + esc(r.ro) + '</div><div class="es">' + esc(r.es) + '</div>' +
       '<div class="row" style="justify-content:center;margin-top:14px;gap:10px"><button class="btn small" id="play">🔊 Escuchar</button><button class="btn small alt" id="slow">🐢 Lento</button></div></div>' +
@@ -550,7 +573,10 @@
     var emoji = pct >= 90 ? '🏆' : pct >= 80 ? '🎉' : pct >= 50 ? '💪' : '📚';
     var msg = '';
     if (cfg.kind === 'exam') {
-      if (passed) {
+      if (passed && isTopic(cfg.lvl)) {
+        S.passed[cfg.lvl] = true; S.xp += 50; save();
+        msg = '¡Tema aprobado! Sus frases entran en tu repaso diario.';
+      } else if (passed) {
         S.passed[cfg.lvl] = true; S.unlocked = Math.max(S.unlocked, Math.min(cfg.lvl + 1, LEVELS.length)); S.xp += 50; save();
         msg = cfg.lvl < LEVELS.length ? '¡Aprobado! Has desbloqueado el nivel ' + (cfg.lvl + 1) + ': ' + LEVELS[cfg.lvl].title + '.' : '¡Has aprobado el último nivel! 🇹🇭';
       } else msg = 'Necesitas un 80% para aprobar. Repasa las frases que fallaste y vuelve a intentarlo.';
@@ -568,7 +594,7 @@
       });
       on('#wr button', 'click', function (e, b) { sayTh(R(byId(b.dataset.id)).th); });
     }
-    if (cfg.kind === 'exam' && passed && cfg.lvl < LEVELS.length) {
+    if (cfg.kind === 'exam' && passed && cfg.lvl < LEVELS.length && !isTopic(cfg.lvl)) {
       html('<button class="btn gold" id="nextl">Ir al nivel ' + (cfg.lvl + 1) + ' ›</button>');
       on('#nextl', 'click', function () { go('level', cfg.lvl + 1, { root: true }); stack.unshift({ name: 'levels' }); render(); });
     }
@@ -583,13 +609,13 @@
   function startExam(lvl, replace) {
     var its = sample(levelItems(lvl), 12);
     var types = ['listen', 'speak', 'meaning', 'repeat', 'listen', 'speak', 'th2es', 'repeat', 'meaning', 'speak', 'listen', 'repeat'];
-    var cfg = { title: 'Examen · Nivel ' + lvl, kind: 'exam', lvl: lvl, questions: buildQuestions(its, shuffle(types)) };
+    var cfg = { title: 'Examen · ' + (isTopic(lvl) ? lvlObj(lvl).title : 'Nivel ' + lvl), kind: 'exam', lvl: lvl, questions: buildQuestions(its, shuffle(types)) };
     if (replace) go('quiz', { cfg: cfg, i: 0, results: [] }, { replace: true }); else runQuiz(cfg);
   }
 
   function startDaily() {
     var tk = dayKey();
-    var unlocked = ALL.filter(function (x) { return x.lvl <= S.unlocked; });
+    var unlocked = ALL.filter(function (x) { return x.lvl <= S.unlocked || (isTopic(x.lvl) && prog(x)); });
     var due = shuffle(unlocked.filter(function (x) { var p = prog(x); return p && p.due <= tk; }))
       .sort(function (a, b) { return prog(a).box - prog(b).box; });
     var fresh = shuffle(levelItems(Math.min(S.unlocked, LEVELS.length)).filter(function (x) { return !prog(x); }));
@@ -852,7 +878,7 @@
     var groups = [];
     if (S.saved.length) groups.push({ title: '⭐ Mis frases guardadas', items: S.saved.map(function (x, i) { return { th: x.th, ro: x.ro, es: x.es, savedIdx: i }; }) });
     EXTRA.forEach(function (g) { groups.push({ title: g.cat, items: g.items.map(function (r) { return { th: r[0], ro: r[1], es: r[2] }; }) }); });
-    LEVELS.forEach(function (L) { groups.push({ title: L.icon + ' ' + L.title, items: levelItems(L.id).map(R) }); });
+    LEVELS.concat(TOPICS).forEach(function (L) { groups.push({ title: L.icon + ' ' + L.title, items: levelItems(L.id).map(R) }); });
     function paint() {
       var q = $('#q').value.trim(), qn = normEs(q), qt = normTh(q);
       var out = '';
@@ -879,7 +905,7 @@
     setTitle('Ajustes');
     var voiceOk = Speech.thaiVoiceOk();
     var learned = Object.keys(S.items).length;
-    html('<div class="card"><h3>📊 Tu progreso</h3><div class="muted">' + learned + ' de ' + ALL.length + ' frases vistas · ' + Object.keys(S.passed).length + ' niveles aprobados · ' + S.xp + ' puntos · racha ' + streak() + ' días</div></div>' +
+    html('<div class="card"><h3>📊 Tu progreso</h3><div class="muted">' + learned + ' de ' + ALL.length + ' frases vistas · ' + corePassed() + ' niveles aprobados · ' + S.xp + ' puntos · racha ' + streak() + ' días</div></div>' +
       '<div class="card"><label class="set" style="margin-top:0">Hablo como</label><div class="seg" id="g"><button data-g="m">Hombre (khráp)</button><button data-g="f">Mujer (khâ)</button></div>' +
       '<label class="set">Velocidad de la voz tailandesa: <span id="rv">' + S.rate + '</span></label><input type="range" id="rate" min="0.5" max="1.2" step="0.05" value="' + S.rate + '" style="width:100%">' +
       '<label class="set"><input type="checkbox" id="auto" ' + (S.autoplay ? 'checked' : '') + '> Reproducir audio automáticamente al estudiar</label>' +
@@ -894,7 +920,7 @@
       '<div class="grid2"><button class="btn" id="exp">⬆️ Exportar</button><button class="btn alt" id="imp">⬇️ Importar</button></div>' +
       '<input type="file" id="impfile" accept="application/json,.json,text/plain" style="display:none"></div>' +
       '<div class="card"><button class="btn alt" id="replace" style="margin-top:0">Repetir test de nivel</button><button class="btn bad" id="reset">Borrar todo el progreso</button></div>' +
-      '<div class="muted center" style="font-size:12px">Sawadee v1.4 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
+      '<div class="muted center" style="font-size:12px">Sawadee v1.5 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
     function paint() { $$('#g button', view).forEach(function (b) { b.classList.toggle('on', b.dataset.g === S.gender); }); }
     paint();
     on('#g button', 'click', function (e, b) { S.gender = b.dataset.g; save(); paint(); });

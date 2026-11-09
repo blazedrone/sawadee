@@ -234,3 +234,239 @@ window.EXTRA = [
     ["ตำรวจ 191", "dtam-rùat", "Policía: 191"]
   ]}
 ];
+
+// Temas libres: siempre abiertos, no hace falta aprobar niveles para verlos.
+// Vocabulario pedido por Fabián en el chat (8 nov). Los ids siguen tras los niveles.
+window.TOPICS = [
+  {
+    id: 11, icon: "💬", title: "Conocer a una chica",
+    tip: "Termina tus frases con «khráp» para sonar educado. Añadir «ná» al final suena más dulce y cercano.",
+    items: [
+      ["คุณชื่ออะไร{p}", "khun chûe à-rai {pr}", "¿Cómo te llamas?"],
+      ["คุณทำงานอะไร{p}", "khun tham ngaan à-rai {pr}", "¿A qué te dedicas?"],
+      ["คุณชอบทำอะไร{p}", "khun châwp tham à-rai {pr}", "¿Qué te gusta hacer?"],
+      ["{I}กำลังเรียนภาษาไทย", "{Ir} gam-lang rian phaa-sǎa thai", "Estoy aprendiendo tailandés"],
+      ["สอน{I}หน่อยได้ไหม", "sǎwn {Ir} nòi dâai mǎi", "¿Me enseñas?"],
+      ["มีแฟนหรือยัง{p}", "mii faen rǔe yang {pr}", "¿Tienes novio?"],
+      ["ไม่มีแฟนมานานแล้วเหรอ{p}", "mâi mii faen maa naan láeo rǒe {pr}", "¿Hace mucho tiempo que no tienes novio?"],
+      ["ทำไมไม่มีแฟน", "tham-mai mâi mii faen", "¿Por qué no tienes novio?"],
+      ["{I}ก็ไม่มีแฟนมานานแล้ว", "{Ir} gâw mâi mii faen maa naan láeo", "Yo tampoco tengo pareja desde hace tiempo"],
+      ["ขอไลน์ได้ไหม{p}", "khǎw lai dâai mǎi {pr}", "¿Me das tu LINE?"],
+      ["ชอบคุยกับคุณ", "châwp khui gàp khun", "Me gusta hablar contigo"],
+      ["ไปกินกาแฟด้วยกันไหม{p}", "bpai gin gaa-fae dûai gan mǎi {pr}", "¿Vamos a tomar un café juntos?"],
+      ["พรุ่งนี้ว่างไหม", "phrûng-níi wâang mǎi", "¿Estás libre mañana?"],
+      ["ไปกินข้าวเย็นกัน", "bpai gin khâao yen gan", "Vamos a cenar"],
+      ["{I}เลี้ยงเอง", "{Ir} líang eeng", "Te invito yo (yo pago)"],
+      ["อยากเจอคุณอีก", "yàak joe khun ìik", "Quiero volver a verte"],
+      ["เจอกันวันเสาร์ไหม", "joe gan wan sǎo mǎi", "¿Nos vemos el sábado?"]
+    ]
+  },
+  {
+    id: 12, icon: "😍", title: "Cumplidos y cariño",
+    tip: "«Rák khun» (te quiero) es muy fuerte en tailandés: guárdala para más adelante. «Khít thǔeng» (te echo de menos) se usa muchísimo.",
+    items: [
+      ["คุณสวยมาก{p}", "khun sǔai mâak {pr}", "Eres muy guapa"],
+      ["น่ารักจัง", "nâa-rák jang", "¡Qué mona! / ¡Qué tierna!"],
+      ["คุณยิ้มสวย", "khun yím sǔai", "Tienes una sonrisa bonita"],
+      ["ตาคุณสวยมาก", "dtaa khun sǔai mâak", "Tus ojos son muy bonitos"],
+      ["คุณนิสัยดีมาก", "khun ní-sǎi dii mâak", "Eres muy buena persona"],
+      ["คุณหวานจัง", "khun wǎan jang", "¡Qué dulce eres!"],
+      ["คุณทำให้{I}มีความสุข", "khun tham hâi {Ir} mii khwaam-sùk", "Me haces feliz"],
+      ["ชอบคุณ", "châwp khun", "Me gustas"],
+      ["รักคุณ", "rák khun", "Te quiero"],
+      ["คิดถึง", "khít-thǔeng", "Te echo de menos"],
+      ["คิดถึงคุณมาก", "khít-thǔeng khun mâak", "Te echo mucho de menos"],
+      ["คิดถึง{I}ไหม", "khít-thǔeng {Ir} mǎi", "¿Me echas de menos?"],
+      ["{I}ก็คิดถึงคุณ", "{Ir} gâw khít-thǔeng khun", "Yo también te echo de menos"],
+      ["อยากเป็นมากกว่าเพื่อน", "yàak bpen mâak gwàa phûean", "Quiero ser más que amigos"],
+      ["ฝันดีนะ", "fǎn dii ná", "Dulces sueños"]
+    ]
+  },
+  {
+    id: 13, icon: "📱", title: "Chat del día a día",
+    tip: "Preguntar «¿ya has comido?» es una forma muy tailandesa de decir que te importa. Y en el chat «555» es «jajaja» (el 5 se dice «hâa»).",
+    items: [
+      ["อรุณสวัสดิ์{p}", "à-run sà-wàt {pr}", "Buenos días"],
+      ["ทำอะไรอยู่", "tham à-rai yùu", "¿Qué haces?"],
+      ["ไม่ได้ทำอะไร คิดถึงคุณ", "mâi dâai tham à-rai, khít-thǔeng khun", "Nada, pensando en ti"],
+      ["กินข้าวหรือยัง", "gin khâao rǔe yang", "¿Ya has comido?"],
+      ["เหนื่อยไหม", "nùeai mǎi", "¿Estás cansada?"],
+      ["ง่วงนอน", "ngûang nawn", "Tengo sueño"],
+      ["พักผ่อนนะ", "phák-phàwn ná", "Descansa"],
+      ["ไปนอนนะ", "bpai nawn ná", "Vete a dormir"],
+      ["นอนดึกไหม", "nawn dùek mǎi", "¿Te acuestas tarde?"],
+      ["นอนกี่โมง", "nawn gìi moong", "¿A qué hora te acuestas?"],
+      ["ยังไม่นอนอีกเหรอ", "yang mâi nawn ìik rǒe", "¿Todavía no duermes?"],
+      ["อย่านอนดึกนะ", "yàa nawn dùek ná", "No te acuestes tarde"],
+      ["{I}ตื่นเช้า", "{Ir} dtùen cháo", "Me levanto temprano"],
+      ["ดูแลตัวเองนะ", "duu-lae dtua eeng ná", "Cuídate"],
+      ["แอบดู{I}อยู่เหรอ", "àep duu {Ir} yùu rǒe", "¿Me estás espiando? (en broma)"],
+      ["แอบดู", "àep duu", "Espiar (mirar a escondidas)"],
+      ["สายลับ", "sǎai-láp", "Espía"]
+    ]
+  },
+  {
+    id: 14, icon: "🍲", title: "Comida tailandesa",
+    tip: "«Gin» (comer) también se usa para beber: «gin náam» = beber agua. Si algo no te gusta, lo educado es «mâi à-ròi» (no está rico).",
+    items: [
+      ["ส้มตำ", "sôm-dtam", "Ensalada de papaya verde"],
+      ["แกงเขียวหวาน", "gaeng khǐao-wǎan", "Curry verde"],
+      ["แกงมัสมั่น", "gaeng mát-sà-màn", "Curry massaman (suave)"],
+      ["ผัดกะเพรา", "phàt gà-phrao", "Salteado con albahaca santa"],
+      ["ข้าวซอย", "khâao sawi", "Khao soi (sopa de curry del norte)"],
+      ["ลาบ", "lâap", "Larb (ensalada de carne picada)"],
+      ["ข้าวเหนียวมะม่วง", "khâao nǐao mà-mûang", "Arroz glutinoso con mango"],
+      ["ชอบกินอะไร", "châwp gin à-rai", "¿Qué te gusta comer?"],
+      ["ยังไม่เคยลอง{p}", "yang mâi khoei lawng {pr}", "Todavía no lo he probado"],
+      ["อยากลอง{p}", "yàak lawng {pr}", "Quiero probarlo"],
+      ["หวาน", "wǎan", "Dulce (sabor)"],
+      ["ขนม", "khà-nǒm", "Postre / Dulces"],
+      ["ถั่ว", "thùa", "Judías / Legumbres"],
+      ["ถั่วฝักยาว", "thùa fàk yaao", "Judías verdes"],
+      ["ถั่วแดง", "thùa daeng", "Alubias rojas"],
+      ["ถั่วเหลือง", "thùa lǔeang", "Soja"],
+      ["ถั่วลิสง", "thùa lí-sǒng", "Cacahuete"],
+      ["ดื่มน้ำ", "dùuem náam", "Beber agua"],
+      ["หิวน้ำ", "hǐw náam", "Tengo sed"],
+      ["น้ำเย็น", "náam yen", "Agua fría"]
+    ]
+  },
+  {
+    id: 15, icon: "🌦️", title: "Clima y noticias",
+    tip: "Noviembre es temporada fresca (rúe-duu nǎao), pero aun así hace calor. «Fǒn dtòk nàk» = llueve fuerte (literalmente «pesado»).",
+    items: [
+      ["อากาศ", "aa-gàat", "El tiempo / El clima"],
+      ["วันนี้อากาศเป็นยังไง", "wan-níi aa-gàat bpen yang-ngai", "¿Qué tiempo hace hoy?"],
+      ["อากาศดี", "aa-gàat dii", "Hace buen tiempo"],
+      ["ฝน", "fǒn", "Lluvia"],
+      ["ตอนนี้ฝนตกหนักมาก", "dtawn-níi fǒn dtòk nàk mâak", "Ahora está lloviendo mucho"],
+      ["ที่นั่นฝนตกไหม", "thîi-nân fǒn dtòk mǎi", "¿Allí llueve?"],
+      ["ฝนจะตกไหม", "fǒn jà dtòk mǎi", "¿Va a llover?"],
+      ["แดดร้อน", "dàet ráwn", "Hace un sol fuerte"],
+      ["มีเมฆ", "mii mêek", "Está nublado"],
+      ["ลมแรง", "lom raeng", "Hace mucho viento"],
+      ["พายุ", "phaa-yú", "Tormenta"],
+      ["ฟ้าร้อง", "fáa ráwng", "Truenos"],
+      ["น้ำท่วม", "náam thûam", "Inundación"],
+      ["หนาว", "nǎao", "Hace frío"],
+      ["อุณหภูมิ", "un-hà-phuum", "Temperatura"],
+      ["กี่องศา", "gìi ong-sǎa", "¿Cuántos grados hace?"],
+      ["สามสิบองศา", "sǎam-sìp ong-sǎa", "30 grados"],
+      ["ข่าว", "khàao", "Noticias"],
+      ["ดูข่าวหรือยัง", "duu khàao rǔe yang", "¿Has visto las noticias?"],
+      ["พยากรณ์อากาศ", "phá-yaa-gawn aa-gàat", "Previsión del tiempo"],
+      ["วันนี้ร้อนมาก ดื่มน้ำเยอะๆ นะ", "wan-níi ráwn mâak, dùuem náam yóe-yóe ná", "Hoy hace mucho calor, bebe mucha agua"]
+    ]
+  },
+  {
+    id: 16, icon: "✅", title: "Sí y no",
+    tip: "En tailandés casi siempre se responde repitiendo el verbo. A «¿châwp mǎi?» (¿te gusta?) respondes «châwp» (sí) o «mâi châwp» (no).",
+    items: [
+      ["ใช่", "châi", "Sí, eso es"],
+      ["ครับ", "khráp", "Sí (educado, lo dice un hombre)"],
+      ["ได้", "dâai", "Sí, vale / Se puede"],
+      ["ไม่", "mâi", "No"],
+      ["ไม่ใช่", "mâi châi", "No, no es así"],
+      ["ไม่เป็นไร", "mâi bpen rai", "No pasa nada"],
+      ["ไม่เอา{p}", "mâi ao {pr}", "No, gracias (no quiero)"],
+      ["ชอบไหม", "châwp mǎi", "¿Te gusta?"],
+      ["ชอบ", "châwp", "Sí, me gusta"],
+      ["ไม่ชอบ", "mâi châwp", "No me gusta"]
+    ]
+  },
+  {
+    id: 17, icon: "📅", title: "Días de la semana y números",
+    tip: "Todos los días empiezan por «wan» (día). Números: el 1 al final se dice «èt» (11 = sìp-èt) y el 20 es «yîi-sìp».",
+    items: [
+      ["วันจันทร์", "wan jan", "Lunes"],
+      ["วันอังคาร", "wan ang-khaan", "Martes"],
+      ["วันพุธ", "wan phút", "Miércoles"],
+      ["วันพฤหัสบดี", "wan phá-rúe-hàt", "Jueves"],
+      ["วันศุกร์", "wan sùk", "Viernes"],
+      ["วันเสาร์", "wan sǎo", "Sábado"],
+      ["วันอาทิตย์", "wan aa-thít", "Domingo"],
+      ["วันนี้วันอะไร", "wan-níi wan à-rai", "¿Qué día es hoy?"],
+      ["ศูนย์", "sǔun", "Cero (0)", ["0"]],
+      ["สิบห้า", "sìp-hâa", "Quince (15)", ["15"]],
+      ["ยี่สิบเอ็ด", "yîi-sìp-èt", "Veintiuno (21)", ["21"]],
+      ["สามสิบ", "sǎam-sìp", "Treinta (30)", ["30"]],
+      ["สี่สิบห้า", "sìi-sìp-hâa", "Cuarenta y cinco (45)", ["45"]],
+      ["หนึ่งหมื่น", "nùeng mùen", "Diez mil (10.000)", ["10000"]],
+      ["หนึ่งแสน", "nùeng sǎen", "Cien mil (100.000)", ["100000"]]
+    ]
+  },
+  {
+    id: 18, icon: "🐘", title: "Animales",
+    tip: "Animal se dice «sàt». El elefante (cháang) es el animal nacional de Tailandia. Las lagartijas de las paredes son «jîng-jòk».",
+    items: [
+      ["หมา", "mǎa", "Perro"],
+      ["แมว", "maeo", "Gato"],
+      ["นก", "nók", "Pájaro"],
+      ["กระต่าย", "grà-dtàai", "Conejo"],
+      ["เป็ด", "bpèt", "Pato"],
+      ["วัว", "wua", "Vaca"],
+      ["ควาย", "khwaai", "Búfalo"],
+      ["ม้า", "máa", "Caballo"],
+      ["ช้าง", "cháang", "Elefante"],
+      ["เสือ", "sǔea", "Tigre"],
+      ["ลิง", "ling", "Mono"],
+      ["งู", "nguu", "Serpiente"],
+      ["จระเข้", "jaw-rá-khêe", "Cocodrilo"],
+      ["เต่า", "dtào", "Tortuga"],
+      ["หมี", "mǐi", "Oso"],
+      ["ปลาโลมา", "bplaa loo-maa", "Delfín"],
+      ["ปลาฉลาม", "bplaa chà-lǎam", "Tiburón"],
+      ["จิ้งจก", "jîng-jòk", "Lagartija"],
+      ["ตุ๊กแก", "dtúk-gae", "Geco grande (tokay)"],
+      ["มีสัตว์เลี้ยงไหม", "mii sàt líang mǎi", "¿Tienes mascota?"],
+      ["{I}ชอบแมว", "{Ir} châwp maeo", "Me gustan los gatos"]
+    ]
+  },
+  {
+    id: 19, icon: "🐜", title: "Insectos y ¡qué asco!",
+    tip: "Insecto se dice «má-laeng». Lleva repelente («yaa gan yung») y, si algo te da asco, la exclamación típica es «ǐi!».",
+    items: [
+      ["ยุง", "yung", "Mosquito"],
+      ["ยุงกัด", "yung gàt", "Me ha picado un mosquito"],
+      ["ยากันยุง", "yaa gan yung", "Repelente de mosquitos"],
+      ["แมลงวัน", "má-laeng wan", "Mosca"],
+      ["มด", "mót", "Hormiga"],
+      ["แมลงสาบ", "má-laeng sàap", "Cucaracha"],
+      ["ผึ้ง", "phûeng", "Abeja"],
+      ["ผีเสื้อ", "phǐi-sûea", "Mariposa"],
+      ["แมงมุม", "maeng-mum", "Araña"],
+      ["แมงป่อง", "maeng-bpàwng", "Escorpión"],
+      ["จิ้งหรีด", "jîng-rìit", "Grillo"],
+      ["ตะขาบ", "dtà-khàap", "Ciempiés"],
+      ["{I}กลัวแมลงสาบ", "{Ir} glua má-laeng sàap", "Me dan miedo las cucarachas"],
+      ["น่ารังเกียจ", "nâa rang-gìat", "Asqueroso"],
+      ["ขยะแขยง", "khà-yà-khà-yǎeng", "Me da asco"],
+      ["อี๋", "ǐi", "¡Qué asco!"],
+      ["สกปรก", "sòk-gà-bpròk", "Sucio"],
+      ["เหม็น", "měn", "Huele mal"],
+      ["ไม่อร่อย", "mâi à-ròi", "No está rico"]
+    ]
+  },
+  {
+    id: 20, icon: "📚", title: "Lectura y amigos",
+    tip: "«Àan nǎng-sǔe» significa leer un libro, pero también se usa para decir «estudiar».",
+    items: [
+      ["อ่าน", "àan", "Leer"],
+      ["หนังสือ", "nǎng-sǔe", "Libro"],
+      ["อ่านหนังสือ", "àan nǎng-sǔe", "Leer un libro / Estudiar"],
+      ["นิยาย", "ní-yaai", "Novela"],
+      ["การ์ตูน", "gaa-dtuun", "Cómic / Dibujos"],
+      ["ห้องสมุด", "hâwng sà-mùt", "Biblioteca"],
+      ["ร้านหนังสือ", "ráan nǎng-sǔe", "Librería"],
+      ["เขียน", "khǐan", "Escribir"],
+      ["คำ", "kham", "Palabra"],
+      ["{I}ชอบอ่านหนังสือ", "{Ir} châwp àan nǎng-sǔe", "Me gusta leer"],
+      ["อ่านอะไรอยู่", "àan à-rai yùu", "¿Qué estás leyendo?"],
+      ["{I}ยังอ่านภาษาไทยไม่ได้", "{Ir} yang àan phaa-sǎa thai mâi dâai", "Todavía no sé leer tailandés"],
+      ["เพื่อนสนิท", "phûean sà-nìt", "Mejor amigo / amiga"],
+      ["เขาเป็นเพื่อน{I}", "khǎo bpen phûean {Ir}", "Es mi amigo"],
+      ["ไปกับเพื่อนเหรอ", "bpai gàp phûean rǒe", "¿Vas con tus amigas?"],
+      ["เป็นเพื่อนกัน", "bpen phûean gan", "Solo amigos"]
+    ]
+  }
+];
