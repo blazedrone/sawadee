@@ -58,6 +58,7 @@ footer a{color:var(--brand)}
 <div class="bar">
   <div class="row">
     <input id="q" type="search" placeholder="Buscar (español, tailandés o pronunciación)" autocomplete="off">
+    <button id="man" class="tog" aria-pressed="true" title="Voz de hombre">👨 Hombre</button>
     <button id="slow" class="tog" aria-pressed="false" title="Más despacio">🐢 Lento</button>
   </div>
   <div class="chips" id="chips"></div>
@@ -73,12 +74,14 @@ var DATA = [{"t": "Saludos y cortesía", "r": [["สวัสดีครับ"
 (function () {
   var $ = function (s) { return document.querySelector(s); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
-  var slow = false; try { slow = localStorage.getItem('frases-slow') === '1'; } catch (e) { }
-  var thVoice = null, mode = 'voice', audio = null, playing = null;
+  var slow = false, man = true; try { slow = localStorage.getItem('frases-slow') === '1'; man = localStorage.getItem('frases-man') !== '0'; } catch (e) { }
+  var MALE = /niwat|male|hombre|man\b|chai|somchai|pattara/i, FEMALE = /kanya|narisa|premwadee|female|mujer|achara/i;
+  var thVoice = null, maleVoice = null, mode = 'voice', audio = null, playing = null;
 
   function pickVoice() {
     var vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
     var th = vs.filter(function (v) { return /^th/i.test(v.lang); });
+    maleVoice = th.filter(function (v) { return MALE.test(v.name) && !FEMALE.test(v.name); })[0] || null;
     thVoice = th.filter(function (v) { return /premium|enhanced|mejorada/i.test(v.name); })[0] || th.filter(function (v) { return v.localService; })[0] || th[0] || null;
     mode = thVoice ? 'voice' : 'online';
     $('#voz').innerHTML = thVoice
@@ -97,7 +100,9 @@ var DATA = [{"t": "Saludos y cortesía", "r": [["สวัสดีครับ"
     if (audio) { audio.pause(); }
     var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=th&ttsspeed=' + (slow ? '0.3' : '1') + '&q=' + encodeURIComponent(t);
     audio = new Audio(url);
-    if (slow) audio.playbackRate = 0.8;
+    // Voz de hombre por internet: bajamos el tono reproduciendo algo más lento sin conservar el tono
+    if (man) { audio.preservesPitch = false; audio.mozPreservesPitch = false; audio.webkitPreservesPitch = false; }
+    audio.playbackRate = man ? (slow ? 0.68 : 0.8) : (slow ? 0.8 : 1);
     audio.onended = done; audio.onerror = function () { done(); if (mode === 'online') $('#voz').textContent = 'No se pudo cargar el audio. Revisa la conexión a internet.'; };
     audio.play().catch(function () { done(); });
   }
@@ -108,11 +113,17 @@ var DATA = [{"t": "Saludos y cortesía", "r": [["สวัสดีครับ"
     t = clean(t); playing = btn; btn.classList.add('play');
     if (mode === 'voice' && thVoice) {
       var u = new SpeechSynthesisUtterance(t);
-      u.lang = 'th-TH'; u.voice = thVoice; u.rate = slow ? 0.55 : 0.9;
-      u.onend = done;
-      u.onerror = function (e) { if (e && (e.error === 'interrupted' || e.error === 'canceled')) return done(); online(t, btn); };
-      speechSynthesis.speak(u);
-      setTimeout(function () { if (playing === btn && !speechSynthesis.speaking && !speechSynthesis.pending) done(); }, 8000);
+      var v = man && maleVoice ? maleVoice : thVoice;
+      u.lang = 'th-TH'; u.voice = v; u.rate = slow ? 0.55 : 0.9;
+      u.pitch = man && v !== maleVoice ? 0.55 : 1; // sin voz masculina: voz más grave
+      var started = false, wasBusy = speechSynthesis.speaking || speechSynthesis.pending;
+      u.onstart = function () { started = true; };
+      u.onend = function () { started = true; done(); };
+      u.onerror = function (e) { if (e && (e.error === 'interrupted' || e.error === 'canceled')) return done(); started = true; online(t, btn); };
+      // iPhone a veces ignora speak() justo después de cancel(): esperamos un poco
+      setTimeout(function () { speechSynthesis.speak(u); }, wasBusy ? 80 : 0);
+      // Si en 1,5 s no ha empezado a sonar, usamos la voz por internet
+      setTimeout(function () { if (playing === btn && !started && !speechSynthesis.speaking) { speechSynthesis.cancel(); online(t, btn); } }, 1500);
     } else online(t, btn);
   }
 
@@ -141,6 +152,10 @@ var DATA = [{"t": "Saludos y cortesía", "r": [["สวัสดีครับ"
   function paintSlow() { sb.classList.toggle('on', slow); sb.setAttribute('aria-pressed', slow); }
   paintSlow();
   sb.onclick = function () { slow = !slow; paintSlow(); try { localStorage.setItem('frases-slow', slow ? '1' : '0'); } catch (e) { } };
+  var mb = $('#man');
+  function paintMan() { mb.classList.toggle('on', man); mb.setAttribute('aria-pressed', man); mb.textContent = man ? '👨 Hombre' : '👩 Mujer'; }
+  paintMan();
+  mb.onclick = function () { man = !man; paintMan(); try { localStorage.setItem('frases-man', man ? '1' : '0'); } catch (e) { } };
 
   function norm(s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
   document.querySelectorAll('.card').forEach(function (c) { c.dataset.n = norm(c.dataset.h); });
