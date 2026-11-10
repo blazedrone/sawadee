@@ -155,7 +155,34 @@
     var rec = null;
     function voiceFor(lang) {
       var vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
-      return vs.filter(function (v) { return v.lang.replace('_', '-').toLowerCase().indexOf(lang.slice(0, 2)) === 0; })[0];
+      var l = vs.filter(function (v) { return v.lang.replace('_', '-').toLowerCase().indexOf(lang.slice(0, 2)) === 0; });
+      return l.filter(function (v) { return /premium|enhanced|mejorada/i.test(v.name); })[0] || l.filter(function (v) { return v.localService; })[0] || l[0];
+    }
+    // ---- Navegador (iPhone): desbloqueo del audio, voces que cargan tarde y audio por internet de respaldo ----
+    var audio = null, unlocked = false;
+    if (!A && window.speechSynthesis) {
+      speechSynthesis.getVoices();
+      if ('onvoiceschanged' in speechSynthesis) speechSynthesis.addEventListener('voiceschanged', function () { speechSynthesis.getVoices(); });
+    }
+    function unlock() {
+      // iOS solo deja sonar audio si la primera vez se pide dentro de un toque del usuario
+      if (unlocked || A) return; unlocked = true;
+      try { if (window.speechSynthesis) { var u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } } catch (e) { }
+      try { audio = new Audio(); audio.muted = true; var p = audio.play(); if (p && p.catch) p.catch(function () { }); } catch (e) { }
+    }
+    if (!A) { document.addEventListener('touchend', unlock, true); document.addEventListener('click', unlock, true); }
+    function stopWeb() {
+      if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel();
+      if (audio) { try { audio.pause(); } catch (e) { } }
+    }
+    function online(text, lang, rate, cb) {
+      // Voz de Google por internet: suena aunque el iPhone no tenga la voz tailandesa
+      var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=' + lang.slice(0, 2) + '&ttsspeed=' + (rate < 0.7 ? '0.3' : '1') + '&q=' + encodeURIComponent(text.slice(0, 190));
+      if (!audio) audio = new Audio();
+      audio.muted = false; audio.onended = function () { if (cb) cb('done'); };
+      audio.onerror = function () { toast('No se pudo cargar el audio. Revisa la conexión o instala la voz tailandesa en Ajustes del iPhone.'); if (cb) cb('error'); };
+      audio.src = url;
+      try { var p = audio.play(); if (p && p.catch) p.catch(function () { if (cb) cb('error'); }); } catch (e) { if (cb) cb('error'); }
     }
     return {
       native: !!A,
@@ -166,14 +193,28 @@
           if (!A.speak(text, lang, rate, id)) { toast('La voz aún se está cargando…'); if (cb) cb('error'); }
           return;
         }
-        if (!window.speechSynthesis) { if (cb) cb('error'); return; }
-        speechSynthesis.cancel();
-        var u = new SpeechSynthesisUtterance(text); u.lang = lang; u.rate = rate;
-        var v = voiceFor(lang); if (v) u.voice = v;
-        u.onend = function () { if (cb) cb('done'); }; u.onerror = function () { if (cb) cb('error'); };
-        speechSynthesis.speak(u);
+        stopWeb();
+        var v = voiceFor(lang);
+        // Sin voz del idioma en el teléfono (o sin speechSynthesis): audio por internet
+        if (!window.speechSynthesis || !v) { online(text, lang, rate, cb); return; }
+        var u = new SpeechSynthesisUtterance(text); u.lang = lang; u.rate = rate; u.voice = v;
+        var started = false, finished = false, my = ++idn;
+        function fin(t) { if (finished) return; finished = true; if (cb) cb(t); }
+        u.onstart = function () { started = true; };
+        u.onend = function () { fin('done'); };
+        u.onerror = function (e) {
+          if (e && (e.error === 'interrupted' || e.error === 'canceled')) return fin('done');
+          if (!started && my === idn) { finished = true; online(text, lang, rate, cb); } else fin('error');
+        };
+        // iOS a veces descarta en silencio lo que se pide justo después de cancel()
+        setTimeout(function () {
+          if (my !== idn) return;
+          speechSynthesis.speak(u);
+          // Si en 1,5 s no ha empezado a sonar, iOS lo ha bloqueado: usamos el audio por internet
+          setTimeout(function () { if (my === idn && !started && !finished) { finished = true; speechSynthesis.cancel(); online(text, lang, rate, cb); } }, 1500);
+        }, 60);
       },
-      stopSpeaking: function () { if (A) A.stopSpeaking(); else if (window.speechSynthesis) speechSynthesis.cancel(); },
+      stopSpeaking: function () { idn++; if (A) A.stopSpeaking(); else stopWeb(); },
       listen: function (lang, h) {
         this.stopSpeaking();
         // Si el reconocedor corta sin resultado final pero ya había oído algo, usamos lo oído
@@ -978,7 +1019,7 @@
       '<div class="grid2"><button class="btn" id="exp">⬆️ Exportar</button><button class="btn alt" id="imp">⬇️ Importar</button></div>' +
       '<input type="file" id="impfile" accept="application/json,.json,text/plain" style="display:none"></div>' +
       '<div class="card"><button class="btn alt" id="replace" style="margin-top:0">Repetir test de nivel</button><button class="btn bad" id="reset">Borrar todo el progreso</button></div>' +
-      '<div class="muted center" style="font-size:12px">Sawadee v1.6 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
+      '<div class="muted center" style="font-size:12px">Sawadee v1.7 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
     function paint() { $$('#g button', view).forEach(function (b) { b.classList.toggle('on', b.dataset.g === S.gender); }); }
     paint();
     on('#g button', 'click', function (e, b) { S.gender = b.dataset.g; save(); paint(); });
