@@ -156,6 +156,8 @@
     function voiceFor(lang) {
       var vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
       var l = vs.filter(function (v) { return v.lang.replace('_', '-').toLowerCase().indexOf(lang.slice(0, 2)) === 0; });
+      // Tailandés: solo voz de mujer (se quitan las voces de hombre si quedan otras)
+      if (lang.slice(0, 2) === 'th') { var f = l.filter(function (v) { return /female|mujer/i.test(v.name) || !/niwat|male|hombre|man\b|chai|somchai|pattara/i.test(v.name); }); if (f.length) l = f; }
       return l.filter(function (v) { return /premium|enhanced|mejorada/i.test(v.name); })[0] || l.filter(function (v) { return v.localService; })[0] || l[0];
     }
     // ---- Navegador (iPhone): desbloqueo del audio, voces que cargan tarde y audio por internet de respaldo ----
@@ -330,7 +332,7 @@
     var L = LEVELS[cur - 1];
     var allPassed = corePassed() >= LEVELS.length;
     var heroTxt = d > 0 ? '<div class="big">' + d + '</div><small>días para Tailandia 🇹🇭 (16 nov)</small>'
-      : '<div class="big">🇹🇭</div><small>¡Ya estás en Tailandia! Usa el traductor y las frases rápidas.</small>';
+      : '<div class="big">🇹🇭</div><small>¡Ya estás en Tailandia! Usa el traductor y la guía de frases.</small>';
     var dots = ''; for (var i = 6; i >= 0; i--) { var k = addDays(-i); dots += '<i class="' + (S.days[k] && S.days[k].daily != null ? 'on' : '') + '"></i>'; }
     var pace = '';
     if (d > 0 && !allPassed) {
@@ -374,7 +376,7 @@
     }
     html('<div class="grid2">' +
       '<button class="tile" id="tTrans"><span>🗣️</span>Traductor por voz<small>Español ⇄ Tailandés</small></button>' +
-      '<button class="tile" id="tPhr"><span>⚡</span>Frases rápidas<small>Funcionan sin internet</small></button>' +
+      '<button class="tile" id="tPhr"><span>🔊</span>Guía de frases<small>' + phraseCount() + ' frases con audio</small></button>' +
       '</div>');
     on('#daily', 'click', startDaily);
     on('#tTrans', 'click', function () { go('translator', null, { root: true }); });
@@ -832,7 +834,7 @@
     on('#trmode button', 'click', function (e, b) { if (b.dataset.m !== mode) { S.trMode = b.dataset.m; save(); render(); } });
     if (mode === 'write') return writeTranslator();
 
-    html('<div class="tip" id="ttip">🇪🇸 Pulsa el botón azul y habla en español: lo traduzco y lo digo en tailandés.<br>🇹🇭 La persona tailandesa pulsa el rojo y habla: verás y oirás el español.<br>⌨️ Para escribir, usa la pestaña «Escribir».</div><div class="chat" id="chat"></div>');
+    html('<div class="tip" id="ttip">🇪🇸 Pulsa el botón «Español» y habla en español: lo traduzco y lo digo en tailandés.<br>🇹🇭 La persona tailandesa pulsa «ภาษาไทย» y habla: verás y oirás el español.<br>⌨️ Para escribir, usa la pestaña «Escribir».</div><div class="chat" id="chat"></div>');
     if (S.history.length) $('#ttip').style.display = 'none';
     var bar = document.createElement('div'); bar.className = 'talkbar';
     bar.innerHTML = '<div class="live" id="live">&nbsp;</div><div class="talkbtns">' +
@@ -966,37 +968,85 @@
     document.body.appendChild(d);
   }
 
-  // ---------------- Frases rápidas ----------------
+  // ---------------- Guía de frases con audio ----------------
+  var phrSlow = false; try { phrSlow = localStorage.getItem('frases-slow') === '1'; } catch (e) { }
+  function phrKey(th) { return String(th).replace(/ครับ|ค่ะ|คะ/g, '').replace(/ฉัน/g, 'ผม').replace(/[^฀-๿]/g, ''); }
+  function phrClean(t) { return String(t).replace(/\.\.\.|…/g, ' ').replace(/\s*\/\s*/g, ', ').trim(); }
+  function normAll(s) { return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function phraseGroups() {
+    var groups = [], seenK = {};
+    if (S.saved.length) groups.push({ title: '⭐ Mis frases guardadas', chip: '⭐ Guardadas', saved: true, items: S.saved.map(function (x, i) { return { th: x.th, ro: x.ro, es: x.es, savedIdx: i }; }) });
+    (window.GUIDE || []).forEach(function (s) {
+      groups.push({ title: s.t, chip: s.t.replace(/\s*\(.*\)/, '').replace(/^Palabras sueltas: /, 'Palabras: '), items: s.r.map(function (r) {
+        seenK[phrKey(r[0])] = 1;
+        return { th: r[0], ro: r[1], es: r[2], li: r[3], ex: r[4] };
+      }) });
+    });
+    EXTRA.forEach(function (g) { groups.push({ title: g.cat, chip: g.cat, items: g.items.map(function (r) { return { th: r[0], ro: r[1], es: r[2] }; }) }); });
+    // Lo que se aprende en los niveles y temas, sin repetir lo que ya está en la guía
+    var first = true;
+    LEVELS.concat(TOPICS).forEach(function (L) {
+      var its = levelItems(L.id).map(R).filter(function (x) { var k = phrKey(x.th); if (!k || seenK[k]) return false; seenK[k] = 1; return true; });
+      if (!its.length) return;
+      groups.push({ title: L.icon + ' ' + L.title, chip: first ? '📚 De las lecciones' : null, lesson: first, items: its });
+      first = false;
+    });
+    return groups;
+  }
+  function phraseCount() { var n = 0; phraseGroups().forEach(function (g) { if (!g.saved) n += g.items.length; }); return n; }
   SCREENS.phrases = function () {
-    setTitle('Frases rápidas');
-    html('<div class="card"><h3>💱 Conversor</h3><div class="row"><input type="number" id="thb" placeholder="Baht ฿" inputmode="decimal"><span>⇄</span><input type="number" id="eur" placeholder="Euros €" inputmode="decimal"></div>' +
-      '<div class="muted" style="font-size:13px;margin-top:6px">1 € = ' + S.eurRate + ' ฿ (cámbialo en Ajustes)</div></div>' +
-      '<input type="search" id="q" placeholder="🔍 Buscar frase (español o ไทย)…"><div id="plist" style="margin-top:12px"></div>');
+    setTitle('Guía de frases');
+    var groups = phraseGroups(), total = 0;
+    groups.forEach(function (g) { if (!g.saved) total += g.items.length; });
+    var m = S.gender === 'm';
+    var chips = '', list = '';
+    groups.forEach(function (g, gi) {
+      if (g.chip) chips += '<button data-go="g' + gi + '">' + esc(g.chip) + '</button>';
+      if (g.lesson) list += '<div class="gsub">📚 De tus lecciones</div>';
+      list += '<section data-sec><h2 class="gh" id="g' + gi + '">' + esc(g.title) + '</h2>' + g.items.map(function (x) {
+        var hay = normAll([x.th, x.ro, x.es, x.li || ''].concat(x.ex || []).join(' '));
+        return '<div class="pcard" data-n="' + esc(hay) + '"><div class="txt" data-th="' + esc(x.th) + '" data-es="' + esc(x.es) + '" data-ro="' + esc(x.ro || '') + '">' +
+          '<div class="th">' + esc(x.th) + '</div>' + (x.ro ? '<div class="pr">' + esc(x.ro) + '</div>' : '') +
+          '<div class="me">' + esc(x.es) + '</div>' + (x.li ? '<div class="li">“' + esc(x.li) + '”</div>' : '') +
+          (x.ex ? '<div class="ex"><button class="spk small" data-say="' + esc(x.ex[0]) + '" aria-label="Escuchar ejemplo">🔊</button><div><div class="th">' + esc(x.ex[0]) + '</div><div class="pr">' + esc(x.ex[1] || '') + '</div><div class="li">' + esc(x.ex[2] || '') + '</div></div></div>' : '') +
+          '</div><div class="pbtns"><button class="spk" data-say="' + esc(x.th) + '" aria-label="Escuchar">🔊</button>' +
+          (x.savedIdx != null ? '<button class="del" data-i="' + x.savedIdx + '" aria-label="Borrar">🗑️</button>' : '') + '</div></div>';
+      }).join('') + '</section>';
+    });
+    html('<div class="ghero"><div class="tth">ภาษาไทย</div><div class="gt">' + total + ' frases y palabras</div><div class="gs">Pulsa 🔊 para escucharlas · toca el texto para verlo en grande</div></div>' +
+      '<div class="gbar"><div class="row"><input id="q" type="search" placeholder="Buscar (español, tailandés o pronunciación)" autocomplete="off">' +
+      '<button id="slowT" class="tog" aria-pressed="false">🐢 Lento</button></div><div class="chips">' + chips + '<button data-go="conv">💱 Conversor</button></div></div>' +
+      '<div class="tip"><b>Truco:</b> ' + (m ? 'como eres hombre, acaba las frases con <b>ครับ (khráp)</b> para ser educado. Las mujeres dicen ค่ะ (khâ).' : 'como eres mujer, acaba las frases con <b>ค่ะ (khâ)</b> para ser educada. Los hombres dicen ครับ (khráp).') +
+      ' Y <b>ไหม (mái)</b> al final convierte cualquier frase en pregunta de sí o no.</div>' +
+      '<div id="plist">' + list + '<p class="none" id="none" hidden>No hay frases con esa búsqueda. Prueba el traductor.</p></div>' +
+      '<h2 class="gh" id="conv">💱 Conversor</h2><div class="card"><div class="row"><input type="number" id="thb" placeholder="Baht ฿" inputmode="decimal"><span>⇄</span><input type="number" id="eur" placeholder="Euros €" inputmode="decimal"></div>' +
+      '<div class="muted" style="font-size:13px;margin-top:6px">1 € = ' + S.eurRate + ' ฿ (cámbialo en Ajustes)</div></div>');
     $('#thb').oninput = function () { $('#eur').value = this.value ? (this.value / S.eurRate).toFixed(2) : ''; };
     $('#eur').oninput = function () { $('#thb').value = this.value ? Math.round(this.value * S.eurRate) : ''; };
-    var groups = [];
-    if (S.saved.length) groups.push({ title: '⭐ Mis frases guardadas', items: S.saved.map(function (x, i) { return { th: x.th, ro: x.ro, es: x.es, savedIdx: i }; }) });
-    EXTRA.forEach(function (g) { groups.push({ title: g.cat, items: g.items.map(function (r) { return { th: r[0], ro: r[1], es: r[2] }; }) }); });
-    LEVELS.concat(TOPICS).forEach(function (L) { groups.push({ title: L.icon + ' ' + L.title, items: levelItems(L.id).map(R) }); });
-    function paint() {
-      var q = $('#q').value.trim(), qn = normEs(q), qt = normTh(q);
-      var out = '';
-      groups.forEach(function (g, gi) {
-        var its = g.items.filter(function (x) { return !q || (hasThai(q) ? normTh(x.th).indexOf(qt) >= 0 : normEs(x.es + ' ' + x.ro).indexOf(qn) >= 0); });
-        if (!its.length) return;
-        out += '<h3 style="margin:14px 0 6px">' + g.title + '</h3><div class="card">' + its.map(function (x) {
-          return '<div class="phrase"><button class="say" data-th="' + esc(x.th) + '">🔊</button><div class="grow big" data-th="' + esc(x.th) + '" data-es="' + esc(x.es) + '" data-ro="' + esc(x.ro || '') + '"><div class="t">' + esc(x.th) + '</div>' +
-            (x.ro ? '<div class="r">' + esc(x.ro) + '</div>' : '') + '<div class="e">' + esc(x.es) + '</div></div>' +
-            (x.savedIdx != null ? '<button class="del" data-i="' + x.savedIdx + '">🗑️</button>' : '') + '</div>';
-        }).join('') + '</div>';
+    var playing = null;
+    on('[data-say]', 'click', function (e, b) {
+      e.stopPropagation();
+      if (playing) playing.classList.remove('play');
+      playing = b; b.classList.add('play');
+      sayTh(phrClean(b.getAttribute('data-say')), phrSlow ? 0.55 : null, function () { b.classList.remove('play'); if (playing === b) playing = null; });
+    });
+    on('.pcard .txt', 'click', function (e, t) { showCard(t.dataset.th, t.dataset.es, t.dataset.ro); });
+    on('.del', 'click', function (e, b) { e.stopPropagation(); S.saved.splice(+b.dataset.i, 1); save(); render(); });
+    on('.chips button', 'click', function (e, b) { var t = document.getElementById(b.dataset.go); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    var sb = $('#slowT');
+    function paintSlow() { sb.classList.toggle('on', phrSlow); sb.setAttribute('aria-pressed', phrSlow); }
+    paintSlow();
+    sb.onclick = function () { phrSlow = !phrSlow; paintSlow(); try { localStorage.setItem('frases-slow', phrSlow ? '1' : '0'); } catch (e) { } };
+    $('#q').addEventListener('input', function () {
+      var q = normAll(this.value.trim()), any = false;
+      $$('[data-sec]', view).forEach(function (s) {
+        var vis = 0;
+        $$('.pcard', s).forEach(function (c) { var ok = !q || c.dataset.n.indexOf(q) >= 0; c.hidden = !ok; if (ok) vis++; });
+        s.hidden = !vis; if (vis) any = true;
       });
-      $('#plist').innerHTML = out || '<div class="muted center">No hay frases con esa búsqueda. Prueba el traductor.</div>';
-      $$('#plist .say').forEach(function (b) { b.onclick = function () { sayTh(b.dataset.th); }; });
-      $$('#plist .big').forEach(function (b) { b.onclick = function () { showCard(b.dataset.th, b.dataset.es, b.dataset.ro); }; });
-      $$('#plist .del').forEach(function (b) { b.onclick = function () { S.saved.splice(+b.dataset.i, 1); save(); render(); }; });
-    }
-    $('#q').oninput = paint;
-    paint();
+      $$('.gsub', view).forEach(function (g) { g.hidden = !!q; });
+      $('#none').hidden = any;
+    });
   };
 
   // ---------------- Ajustes ----------------
@@ -1019,7 +1069,7 @@
       '<div class="grid2"><button class="btn" id="exp">⬆️ Exportar</button><button class="btn alt" id="imp">⬇️ Importar</button></div>' +
       '<input type="file" id="impfile" accept="application/json,.json,text/plain" style="display:none"></div>' +
       '<div class="card"><button class="btn alt" id="replace" style="margin-top:0">Repetir test de nivel</button><button class="btn bad" id="reset">Borrar todo el progreso</button></div>' +
-      '<div class="muted center" style="font-size:12px">Sawadee v1.7 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
+      '<div class="muted center" style="font-size:12px">Sawadee v1.8 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
     function paint() { $$('#g button', view).forEach(function (b) { b.classList.toggle('on', b.dataset.g === S.gender); }); }
     paint();
     on('#g button', 'click', function (e, b) { S.gender = b.dataset.g; save(); paint(); });
@@ -1085,4 +1135,6 @@
 
   updateXp();
   go('home', null, { root: true });
+  // frases.html y los enlaces antiguos abren directamente la guía
+  if (/^#frases/.test(location.hash) && S.onboarded) go('phrases', null, { root: true });
 })();
