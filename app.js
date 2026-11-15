@@ -4,6 +4,16 @@
   var KEY = 'aprendetai.v1';
   var INTERVALS = [0, 1, 2, 4, 7, 14, 30]; // días por caja (repaso espaciado)
   var $ = function (s, r) { return (r || document).querySelector(s); };
+  // Números con coma o punto decimal (el teclado del iPhone en español usa coma)
+  function parseNum(t) {
+    t = String(t == null ? '' : t).replace(/[\s€฿]/g, '');
+    if (t.indexOf(',') >= 0 && t.indexOf('.') >= 0) t = t.lastIndexOf(',') > t.lastIndexOf('.') ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+    else t = t.replace(',', '.');
+    if (!/^\d*\.?\d+$|^\d+\.$/.test(t)) return NaN;
+    return parseFloat(t);
+  }
+  function fmtNum(n, d, g) { return (+n).toLocaleString('es-ES', { minimumFractionDigits: d && Math.round(n * 100) % 100 ? d : 0, maximumFractionDigits: d, useGrouping: !!g }); }
+  function rateEur() { var r = parseNum(S.eurRate); return r > 0 ? r : 38; }
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var view = $('#view');
 
@@ -1019,10 +1029,22 @@
       '<div class="tip"><b>Truco:</b> ' + (m ? 'como eres hombre, acaba las frases con <b>ครับ (khráp)</b> para ser educado. Las mujeres dicen ค่ะ (khâ).' : 'como eres mujer, acaba las frases con <b>ค่ะ (khâ)</b> para ser educada. Los hombres dicen ครับ (khráp).') +
       ' Y <b>ไหม (mái)</b> al final convierte cualquier frase en pregunta de sí o no.</div>' +
       '<div id="plist">' + list + '<p class="none" id="none" hidden>No hay frases con esa búsqueda. Prueba el traductor.</p></div>' +
-      '<h2 class="gh" id="conv">💱 Conversor</h2><div class="card"><div class="row"><input type="number" id="thb" placeholder="Baht ฿" inputmode="decimal"><span>⇄</span><input type="number" id="eur" placeholder="Euros €" inputmode="decimal"></div>' +
-      '<div class="muted" style="font-size:13px;margin-top:6px">1 € = ' + S.eurRate + ' ฿ (cámbialo en Ajustes)</div></div>');
-    $('#thb').oninput = function () { $('#eur').value = this.value ? (this.value / S.eurRate).toFixed(2) : ''; };
-    $('#eur').oninput = function () { $('#thb').value = this.value ? Math.round(this.value * S.eurRate) : ''; };
+      '<h2 class="gh" id="conv">💱 Conversor</h2><div class="card"><div class="row"><input type="text" id="eur" placeholder="Euros €" inputmode="decimal" autocomplete="off"><span>⇄</span><input type="text" id="thb" placeholder="Baht ฿" inputmode="decimal" autocomplete="off"></div>' +
+      '<div id="convRes" class="convres">Escribe una cantidad en euros o en baht</div>' +
+      '<div class="muted" style="font-size:13px;margin-top:6px">1 € = ' + fmtNum(rateEur(), 2) + ' ฿ (cámbialo en Ajustes)</div></div>');
+    function conv(fromEur) {
+      var r = rateEur(), src = $(fromEur ? '#eur' : '#thb'), dst = $(fromEur ? '#thb' : '#eur'), out = $('#convRes');
+      var v = parseNum(src.value);
+      if (src.value.trim() === '') { dst.value = ''; out.textContent = 'Escribe una cantidad en euros o en baht'; return; }
+      if (isNaN(v)) { dst.value = ''; out.textContent = 'Escribe solo números, por ejemplo 12,50'; return; }
+      var eur = fromEur ? v : v / r, thb = fromEur ? v * r : v;
+      dst.value = fromEur ? fmtNum(thb, thb < 100 ? 2 : 0) : fmtNum(eur, 2);
+      out.textContent = fmtNum(eur, 2, 1) + ' € = ' + fmtNum(thb, thb < 100 ? 2 : 0, 1) + ' ฿';
+    }
+    ['input', 'keyup', 'change'].forEach(function (ev) {
+      $('#eur').addEventListener(ev, function () { conv(true); });
+      $('#thb').addEventListener(ev, function () { conv(false); });
+    });
     var playing = null;
     on('[data-say]', 'click', function (e, b) {
       e.stopPropagation();
@@ -1059,7 +1081,7 @@
       '<label class="set">Velocidad de la voz tailandesa: <span id="rv">' + S.rate + '</span></label><input type="range" id="rate" min="0.5" max="1.2" step="0.05" value="' + S.rate + '" style="width:100%">' +
       '<label class="set"><input type="checkbox" id="auto" ' + (S.autoplay ? 'checked' : '') + '> Reproducir audio automáticamente al estudiar</label>' +
       '<label class="set"><input type="checkbox" id="spk" ' + (S.speakOut ? 'checked' : '') + '> En el traductor, leer en voz alta el español</label>' +
-      '<label class="set">Cambio: 1 € = ? ฿</label><input type="number" id="er" value="' + S.eurRate + '" inputmode="decimal"></div>' +
+      '<label class="set">Cambio: 1 € = ? ฿</label><input type="text" id="er" value="' + fmtNum(rateEur(), 2) + '" inputmode="decimal" autocomplete="off"></div>' +
       '<div class="card"><h3>🔈 Voz y micrófono</h3><div class="muted">Voz tailandesa: ' + (voiceOk ? '✅ instalada' : '⚠️ no encontrada') + '</div>' +
       '<button class="btn small" id="test" style="margin-top:8px">Probar voz</button> ' +
       (Speech.native ? '<button class="btn small alt" id="inst" style="margin-top:8px">Instalar voz tailandesa</button> <button class="btn small alt" id="ttsset" style="margin-top:8px">Ajustes de voz</button>' : '') +
@@ -1077,7 +1099,7 @@
     on('#rate', 'change', function () { sayTh('สวัสดี' + (S.gender === 'm' ? 'ครับ' : 'ค่ะ')); });
     on('#auto', 'change', function (e, el) { S.autoplay = el.checked; save(); });
     on('#spk', 'change', function (e, el) { S.speakOut = el.checked; save(); });
-    on('#er', 'change', function (e, el) { var v = parseFloat(el.value); if (v > 0) { S.eurRate = v; save(); } });
+    on('#er', 'change', function (e, el) { var v = parseNum(el.value); if (v > 0) { S.eurRate = v; save(); toast('Cambio guardado: 1 € = ' + fmtNum(v, 2) + ' ฿'); } else { el.value = fmtNum(rateEur(), 2); toast('Escribe un número, por ejemplo 38,5'); } });
     on('#test', 'click', function () { sayTh('ยินดีต้อนรับสู่ประเทศไทย'); });
     on('#inst', 'click', function () { window.Android.installThaiVoice(); });
     on('#ttsset', 'click', function () { window.Android.openTtsSettings(); });
