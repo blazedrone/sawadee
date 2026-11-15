@@ -1091,7 +1091,7 @@
       '<div class="grid2"><button class="btn" id="exp">⬆️ Exportar</button><button class="btn alt" id="imp">⬇️ Importar</button></div>' +
       '<input type="file" id="impfile" accept="application/json,.json,text/plain" style="display:none"></div>' +
       '<div class="card"><button class="btn alt" id="replace" style="margin-top:0">Repetir test de nivel</button><button class="btn bad" id="reset">Borrar todo el progreso</button></div>' +
-      '<div class="muted center" style="font-size:12px">Sawadee v1.8 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
+      '<div class="muted center" style="font-size:12px">Sawadee v2.0 · ' + (Speech.native ? 'Android' : 'Navegador') + '</div>');
     function paint() { $$('#g button', view).forEach(function (b) { b.classList.toggle('on', b.dataset.g === S.gender); }); }
     paint();
     on('#g button', 'click', function (e, b) { S.gender = b.dataset.g; save(); paint(); });

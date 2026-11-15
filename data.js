@@ -468,6 +468,59 @@ window.TOPICS = [
       ["ไปกับเพื่อนเหรอ", "bpai gàp phûean rǒe", "¿Vas con tus amigas?"],
       ["เป็นเพื่อนกัน", "bpen phûean gan", "Solo amigos"]
     ]
+  },
+  {
+    id: 21, icon: "🔢", title: "Números del 11 al 29",
+    tip: "Del 11 al 19 es «sìp» (10) + el número, pero el 1 final se dice «èt»: 11 = sìp-èt, 21 = yîi-sìp-èt. ¡Ojo! El 20 no es «sǎwng-sìp», es «yîi-sìp».",
+    items: [
+      ["สิบเอ็ด", "sìp-èt", "Once (11)", ["11"]],
+      ["สิบสอง", "sìp-sǎwng", "Doce (12)", ["12"]],
+      ["สิบสาม", "sìp-sǎam", "Trece (13)", ["13"]],
+      ["สิบสี่", "sìp-sìi", "Catorce (14)", ["14"]],
+      ["สิบห้า", "sìp-hâa", "Quince (15)", ["15"]],
+      ["สิบหก", "sìp-hòk", "Dieciséis (16)", ["16"]],
+      ["สิบเจ็ด", "sìp-jèt", "Diecisiete (17)", ["17"]],
+      ["สิบแปด", "sìp-bpàet", "Dieciocho (18)", ["18"]],
+      ["สิบเก้า", "sìp-gâo", "Diecinueve (19)", ["19"]],
+      ["ยี่สิบ", "yîi-sìp", "Veinte (20)", ["20"]],
+      ["ยี่สิบเอ็ด", "yîi-sìp-èt", "Veintiuno (21)", ["21"]],
+      ["ยี่สิบสอง", "yîi-sìp-sǎwng", "Veintidós (22)", ["22"]],
+      ["ยี่สิบสาม", "yîi-sìp-sǎam", "Veintitrés (23)", ["23"]],
+      ["ยี่สิบสี่", "yîi-sìp-sìi", "Veinticuatro (24)", ["24"]],
+      ["ยี่สิบห้า", "yîi-sìp-hâa", "Veinticinco (25)", ["25"]],
+      ["ยี่สิบหก", "yîi-sìp-hòk", "Veintiséis (26)", ["26"]],
+      ["ยี่สิบเจ็ด", "yîi-sìp-jèt", "Veintisiete (27)", ["27"]],
+      ["ยี่สิบแปด", "yîi-sìp-bpàet", "Veintiocho (28)", ["28"]],
+      ["ยี่สิบเก้า", "yîi-sìp-gâo", "Veintinueve (29)", ["29"]]
+    ]
+  },
+  {
+    id: 22, icon: "💯", title: "Decenas, cientos y millones",
+    tip: "Decenas = número + «sìp». Cien = «ráwy», mil = «phan», diez mil = «mùen», cien mil = «sǎen» y un millón = «láan». 150 = nùeng ráwy hâa-sìp (uno-cien-cinco-diez). En la calle a menudo dicen solo «ráwy» por 100.",
+    items: [
+      ["ยี่สิบ", "yîi-sìp", "Veinte (20)", ["20"]],
+      ["สามสิบ", "sǎam-sìp", "Treinta (30)", ["30"]],
+      ["สี่สิบ", "sìi-sìp", "Cuarenta (40)", ["40"]],
+      ["ห้าสิบ", "hâa-sìp", "Cincuenta (50)", ["50"]],
+      ["หกสิบ", "hòk-sìp", "Sesenta (60)", ["60"]],
+      ["เจ็ดสิบ", "jèt-sìp", "Setenta (70)", ["70"]],
+      ["แปดสิบ", "bpàet-sìp", "Ochenta (80)", ["80"]],
+      ["เก้าสิบ", "gâo-sìp", "Noventa (90)", ["90"]],
+      ["หนึ่งร้อย", "nùeng ráwy", "Cien (100)", ["100"]],
+      ["หนึ่งร้อยยี่สิบ", "nùeng ráwy yîi-sìp", "Ciento veinte (120)", ["120"]],
+      ["หนึ่งร้อยสามสิบ", "nùeng ráwy sǎam-sìp", "Ciento treinta (130)", ["130"]],
+      ["หนึ่งร้อยสี่สิบ", "nùeng ráwy sìi-sìp", "Ciento cuarenta (140)", ["140"]],
+      ["หนึ่งร้อยห้าสิบ", "nùeng ráwy hâa-sìp", "Ciento cincuenta (150)", ["150"]],
+      ["สองร้อย", "sǎwng ráwy", "Doscientos (200)", ["200"]],
+      ["สามร้อย", "sǎam ráwy", "Trescientos (300)", ["300"]],
+      ["ห้าร้อย", "hâa ráwy", "Quinientos (500)", ["500"]],
+      ["หนึ่งพัน", "nùeng phan", "Mil (1.000)", ["1000"]],
+      ["หนึ่งหมื่น", "nùeng mùen", "Diez mil (10.000)", ["10000"]],
+      ["หนึ่งแสน", "nùeng sǎen", "Cien mil (100.000)", ["100000"]],
+      ["หนึ่งล้าน", "nùeng láan", "Un millón (1.000.000)", ["1000000"]],
+      ["ห้าร้อยบาท{p}", "hâa ráwy bàat {pr}", "Son 500 baht"],
+      ["ลดหน่อยได้ไหม{p}", "lót nàwy dâai mǎi {pr}", "¿Me hace un descuento?"]
+    ]
   }
 ];
 
